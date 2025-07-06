@@ -16,6 +16,7 @@ import {
   Logger,
   MCPDiscoveryState,
   MCPServerStatus,
+  getErrorMessage,
   getMCPDiscoveryState,
   getMCPServerStatus,
 } from '@google/gemini-cli-core';
@@ -140,6 +141,38 @@ export const useSlashCommandProcessor = (
     },
     [addItem],
   );
+
+  const reloadMcpAction = useCallback(async () => {
+    if (!config) {
+      addMessage({
+        type: MessageType.ERROR,
+        content: 'Configuration not available.',
+        timestamp: new Date(),
+      });
+      return;
+    }
+    addMessage({
+      type: MessageType.INFO,
+      content: 'Reloading MCP servers...',
+      timestamp: new Date(),
+    });
+    try {
+      await config.reloadMcpServers();
+      addMessage({
+        type: MessageType.INFO,
+        content: 'MCP servers reloaded successfully.',
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      addMessage({
+        type: MessageType.ERROR,
+        content: `Error reloading MCP servers: ${errorMessage}`,
+        timestamp: new Date(),
+      });
+      console.error('Error reloading MCP servers:', error);
+    }
+  }, [config, addMessage]);
 
   const showMemoryAction = useCallback(async () => {
     const actionFn = createShowMemoryAction(config, settings, addMessage);
@@ -296,15 +329,20 @@ export const useSlashCommandProcessor = (
       },
       {
         name: 'mcp',
-        description: 'list configured MCP servers and tools',
-        action: async (_mainCommand, _subCommand, _args) => {
-          // Check if the _subCommand includes a specific flag to control description visibility
+        description:
+          'list configured MCP servers and tools. Usage: /mcp [desc|nodesc|schema|reload]',
+        action: async (_mainCommand, subCommand, _args) => {
+          if (subCommand === 'reload') {
+            await reloadMcpAction();
+            return;
+          }
+          // Check if the subCommand includes a specific flag to control description visibility
           let useShowDescriptions = showToolDescriptions;
-          if (_subCommand === 'desc' || _subCommand === 'descriptions') {
+          if (subCommand === 'desc' || subCommand === 'descriptions') {
             useShowDescriptions = true;
           } else if (
-            _subCommand === 'nodesc' ||
-            _subCommand === 'nodescriptions'
+            subCommand === 'nodesc' ||
+            subCommand === 'nodescriptions'
           ) {
             useShowDescriptions = false;
           } else if (_args === 'desc' || _args === 'descriptions') {
@@ -312,9 +350,9 @@ export const useSlashCommandProcessor = (
           } else if (_args === 'nodesc' || _args === 'nodescriptions') {
             useShowDescriptions = false;
           }
-          // Check if the _subCommand includes a specific flag to show detailed tool schema
+          // Check if the subCommand includes a specific flag to show detailed tool schema
           let useShowSchema = false;
-          if (_subCommand === 'schema' || _args === 'schema') {
+          if (subCommand === 'schema' || _args === 'schema') {
             useShowSchema = true;
           }
 

@@ -452,6 +452,12 @@ export class Config {
     }
     return this.gitService;
   }
+
+  async reloadMcpServers(): Promise<void> {
+    if (this.toolRegistry) {
+      await this.toolRegistry.discoverTools();
+    }
+  }
 }
 
 export function createToolRegistry(config: Config): Promise<ToolRegistry> {
