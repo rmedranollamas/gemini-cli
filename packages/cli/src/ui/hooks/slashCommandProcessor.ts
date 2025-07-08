@@ -16,7 +16,6 @@ import {
   Logger,
   MCPDiscoveryState,
   MCPServerStatus,
-  getErrorMessage,
   getMCPDiscoveryState,
   getMCPServerStatus,
 } from '@google/gemini-cli-core';
@@ -185,40 +184,39 @@ export const useSlashCommandProcessor = (
       console.error('Error reloading MCP servers:', error);
     }
   }, [config, addMessage]);
-
-  const showMemoryAction = useCallback(async () => {
-    const actionFn = createShowMemoryAction(config, settings, addMessage);
-    await actionFn();
-  }, [config, settings, addMessage]);
-
-  const addMemoryAction = useCallback(
-    (
-      _mainCommand: string,
-      _subCommand?: string,
-      args?: string,
-    ): SlashCommandActionReturn | void => {
-      if (!args || args.trim() === '') {
-        addMessage({
-          type: MessageType.ERROR,
-          content: 'Usage: /memory add <text to remember>',
-          timestamp: new Date(),
-        });
-        return;
-      }
-      // UI feedback for attempting to schedule
-      addMessage({
-        type: MessageType.INFO,
-        content: `Attempting to save to memory: "${args.trim()}"`,
-        timestamp: new Date(),
-      });
-      // Return info for scheduling the tool call
-      return {
-        shouldScheduleTool: true,
-        toolName: 'save_memory',
-        toolArgs: { fact: args.trim() },
-      };
-    },
-    [addMessage],
+  
+  const commandContext = useMemo(
+    (): CommandContext => ({
+      services: {
+        config,
+        settings,
+        git: gitService,
+        logger,
+      },
+      ui: {
+        addItem,
+        clear: () => {
+          clearItems();
+          console.clear();
+          refreshStatic();
+        },
+        setDebugMessage: onDebugMessage,
+      },
+      session: {
+        stats: session.stats,
+      },
+    }),
+    [
+      config,
+      settings,
+      gitService,
+      logger,
+      addItem,
+      clearItems,
+      refreshStatic,
+      session.stats,
+      onDebugMessage,
+    ],
   );
 
   const commandService = useMemo(() => new CommandService(), []);
@@ -332,18 +330,18 @@ export const useSlashCommandProcessor = (
         name: 'mcp',
         description:
           'list configured MCP servers and tools. Usage: /mcp [desc|nodesc|schema|reload]',
-        action: async (_mainCommand, subCommand, _args) => {
-          if (subCommand === 'reload') {
+        action: async (_mainCommand, _subCommand, _args) => {
+          if (_subCommand === 'reload') {
             await reloadMcpAction();
             return;
           }
           // Check if the subCommand includes a specific flag to control description visibility
           let useShowDescriptions = showToolDescriptions;
-          if (subCommand === 'desc' || subCommand === 'descriptions') {
+          if (_subCommand === 'desc' || _subCommand === 'descriptions') {
             useShowDescriptions = true;
           } else if (
-            subCommand === 'nodesc' ||
-            subCommand === 'nodescriptions'
+            _subCommand === 'nodesc' ||
+            _subCommand === 'nodescriptions'
           ) {
             useShowDescriptions = false;
           } else if (_args === 'desc' || _args === 'descriptions') {
@@ -351,9 +349,9 @@ export const useSlashCommandProcessor = (
           } else if (_args === 'nodesc' || _args === 'nodescriptions') {
             useShowDescriptions = false;
           }
-          // Check if the subCommand includes a specific flag to show detailed tool schema
+          // Check if the _subCommand includes a specific flag to show detailed tool schema
           let useShowSchema = false;
-          if (subCommand === 'schema' || _args === 'schema') {
+          if (_subCommand === 'schema' || _args === 'schema') {
             useShowSchema = true;
           }
 
