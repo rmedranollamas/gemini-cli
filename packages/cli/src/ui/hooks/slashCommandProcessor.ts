@@ -32,6 +32,7 @@ import path from 'path';
 import { GIT_COMMIT_INFO } from '../../generated/git-commit.js';
 import { formatDuration, formatMemoryUsage } from '../utils/formatters.js';
 import { getCliVersion } from '../../utils/version.js';
+import { parseAndFormatApiError } from '../utils/errorParsing.js';
 import { LoadedSettings } from '../../config/settings.js';
 import {
   type CommandContext,
@@ -175,7 +176,10 @@ export const useSlashCommandProcessor = (
         timestamp: new Date(),
       });
     } catch (error) {
-      const errorMessage = getErrorMessage(error);
+      const errorMessage = parseAndFormatApiError(
+        error,
+        settings.merged.selectedAuthType,
+      );
       addMessage({
         type: MessageType.ERROR,
         content: `Error reloading MCP servers: ${errorMessage}`,
@@ -183,8 +187,8 @@ export const useSlashCommandProcessor = (
       });
       console.error('Error reloading MCP servers:', error);
     }
-  }, [config, addMessage]);
-  
+  }, [config, addMessage, settings.merged.selectedAuthType]);
+
   const commandContext = useMemo(
     (): CommandContext => ({
       services: {
@@ -329,9 +333,9 @@ export const useSlashCommandProcessor = (
       {
         name: 'mcp',
         description:
-          'list configured MCP servers and tools. Usage: /mcp [desc|nodesc|schema|reload]',
+          'list configured MCP servers and tools. Usage: /mcp [desc|nodesc|schema|refresh]',
         action: async (_mainCommand, _subCommand, _args) => {
-          if (_subCommand === 'reload') {
+          if (_subCommand === 'refresh') {
             await reloadMcpAction();
             return;
           }
@@ -1060,6 +1064,7 @@ export const useSlashCommandProcessor = (
     setPendingCompressionItem,
     clearItems,
     refreshStatic,
+    reloadMcpAction,
   ]);
 
   const handleSlashCommand = useCallback(

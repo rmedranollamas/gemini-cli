@@ -455,9 +455,8 @@ export class Config {
   }
 
   async reloadMcpServers(): Promise<void> {
-    if (this.toolRegistry) {
-      await this.toolRegistry.discoverTools();
-    }
+    const toolRegistry = await this.getToolRegistry();
+    await toolRegistry.discoverTools();
   }
 
   async refreshMemory(): Promise<{ memoryContent: string; fileCount: number }> {
