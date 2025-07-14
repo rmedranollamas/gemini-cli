@@ -329,7 +329,7 @@ export const useSlashCommandProcessor = (
           'list configured MCP servers and tools. Usage: /mcp [desc|nodesc|schema|refresh]',
         action: async (_mainCommand, _subCommand, _args) => {
           if (_subCommand === 'refresh') {
-            await reloadMcpAction();
+            await refreshMcpAction();
             return;
           }
           // Check if the subCommand includes a specific flag to control description visibility
