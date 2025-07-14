@@ -154,7 +154,7 @@ export const useSlashCommandProcessor = (
     [addItem],
   );
 
-  const reloadMcpAction = useCallback(async () => {
+  const refreshMcpAction = useCallback(async () => {
     if (!config) {
       addMessage({
         type: MessageType.ERROR,
