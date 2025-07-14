@@ -165,7 +165,7 @@ export const useSlashCommandProcessor = (
     }
     addMessage({
       type: MessageType.INFO,
-      content: 'Reloading MCP servers...',
+      content: 'Refreshing MCP servers...',
       timestamp: new Date(),
     });
     try {
