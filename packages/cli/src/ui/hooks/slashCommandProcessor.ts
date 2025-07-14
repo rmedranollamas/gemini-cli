@@ -185,7 +185,7 @@ export const useSlashCommandProcessor = (
         content: `Error refreshing MCP servers: ${errorMessage}`,
         timestamp: new Date(),
       });
-      console.error('Error reloading MCP servers:', error);
+      console.error('Error refreshing MCP servers:', error);
     }
   }, [config, addMessage, settings.merged.selectedAuthType]);
 
