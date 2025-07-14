@@ -454,7 +454,7 @@ export class Config {
     return this.gitService;
   }
 
-  async reloadMcpServers(): Promise<void> {
+  async refreshMcpServers(): Promise<void> {
     const toolRegistry = await this.getToolRegistry();
     await toolRegistry.discoverTools();
   }
