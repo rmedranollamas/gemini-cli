@@ -169,10 +169,10 @@ export const useSlashCommandProcessor = (
       timestamp: new Date(),
     });
     try {
-      await config.reloadMcpServers();
+      await config.refreshMcpServers();
       addMessage({
         type: MessageType.INFO,
-        content: 'MCP servers reloaded successfully.',
+        content: 'MCP servers refreshed successfully.',
         timestamp: new Date(),
       });
     } catch (error) {
