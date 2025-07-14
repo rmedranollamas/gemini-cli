@@ -1064,7 +1064,7 @@ export const useSlashCommandProcessor = (
     setPendingCompressionItem,
     clearItems,
     refreshStatic,
-    reloadMcpAction,
+    refreshMcpAction,
   ]);
 
   const handleSlashCommand = useCallback(
