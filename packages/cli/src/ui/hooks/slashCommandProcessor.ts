@@ -182,7 +182,7 @@ export const useSlashCommandProcessor = (
       );
       addMessage({
         type: MessageType.ERROR,
-        content: `Error reloading MCP servers: ${errorMessage}`,
+        content: `Error refreshing MCP servers: ${errorMessage}`,
         timestamp: new Date(),
       });
       console.error('Error reloading MCP servers:', error);
