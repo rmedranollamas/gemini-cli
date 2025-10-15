@@ -230,7 +230,7 @@ export function useCommandCompletion(
 
       const lineCodePoints = toCodePoints(buffer.lines[cursorRow] || '');
       const charAfterCompletion = lineCodePoints[end];
-      if (charAfterCompletion !== ' ') {
+      if (charAfterCompletion !== ' ' && !suggestionText.endsWith('/')) {
         suggestionText += ' ';
       }
 
