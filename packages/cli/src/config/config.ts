@@ -665,6 +665,7 @@ export async function loadCliConfig(
     output: {
       format: (argv.outputFormat ?? settings.output?.format) as OutputFormat,
     },
+    useModelRouter,
     enableMessageBusIntegration,
     codebaseInvestigatorSettings:
       settings.experimental?.codebaseInvestigatorSettings,
@@ -676,6 +677,8 @@ export async function loadCliConfig(
     // TODO: loading of hooks based on workspace trust
     enableHooks: settings.tools?.enableHooks ?? false,
     hooks: settings.hooks || {},
+    simpleTaskModel: settings.experimental?.router?.simpleTaskModel,
+    complexTaskModel: settings.experimental?.router?.complexTaskModel,
   });
 }
 
