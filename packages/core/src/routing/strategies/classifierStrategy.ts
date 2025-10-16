@@ -12,11 +12,7 @@ import type {
   RoutingDecision,
   RoutingStrategy,
 } from '../routingStrategy.js';
-import {
-  DEFAULT_GEMINI_FLASH_MODEL,
-  DEFAULT_GEMINI_FLASH_LITE_MODEL,
-  DEFAULT_GEMINI_MODEL,
-} from '../../config/models.js';
+import { DEFAULT_GEMINI_FLASH_LITE_MODEL } from '../../config/models.js';
 import {
   type GenerateContentConfig,
   createUserContent,
@@ -143,7 +139,7 @@ export class ClassifierStrategy implements RoutingStrategy {
 
   async route(
     context: RoutingContext,
-    _config: Config,
+    config: Config,
     baseLlmClient: BaseLlmClient,
   ): Promise<RoutingDecision | null> {
     const startTime = Date.now();
@@ -186,7 +182,7 @@ export class ClassifierStrategy implements RoutingStrategy {
 
       if (routerResponse.model_choice === FLASH_MODEL) {
         return {
-          model: DEFAULT_GEMINI_FLASH_MODEL,
+          model: config.getSimpleTaskModel(),
           metadata: {
             source: 'Classifier',
             latencyMs,
@@ -195,7 +191,7 @@ export class ClassifierStrategy implements RoutingStrategy {
         };
       } else {
         return {
-          model: DEFAULT_GEMINI_MODEL,
+          model: config.getComplexTaskModel(),
           metadata: {
             source: 'Classifier',
             reasoning,

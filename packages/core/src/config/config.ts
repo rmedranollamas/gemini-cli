@@ -46,6 +46,7 @@ import { StartSessionEvent } from '../telemetry/index.js';
 import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
 } from './models.js';
 import { shouldAttemptBrowserLaunch } from '../utils/browser.js';
 import type { MCPOAuthConfig } from '../mcp/oauth-provider.js';
@@ -255,6 +256,8 @@ export interface ConfigParameters {
   output?: OutputSettings;
   useModelRouter?: boolean;
   enableMessageBusIntegration?: boolean;
+  simpleTaskModel?: string;
+  complexTaskModel?: string;
 }
 
 export class Config {
@@ -345,6 +348,8 @@ export class Config {
   private readonly outputSettings: OutputSettings;
   private readonly useModelRouter: boolean;
   private readonly enableMessageBusIntegration: boolean;
+  private readonly simpleTaskModel: string;
+  private readonly complexTaskModel: string;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -433,6 +438,8 @@ export class Config {
     this.useModelRouter = params.useModelRouter ?? false;
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
+    this.simpleTaskModel = params.simpleTaskModel ?? DEFAULT_GEMINI_FLASH_MODEL;
+    this.complexTaskModel = params.complexTaskModel ?? DEFAULT_GEMINI_MODEL;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;
@@ -970,6 +977,14 @@ export class Config {
 
   getUseModelRouter(): boolean {
     return this.useModelRouter;
+  }
+
+  getSimpleTaskModel(): string {
+    return this.simpleTaskModel;
+  }
+
+  getComplexTaskModel(): string {
+    return this.complexTaskModel;
   }
 
   async getGitService(): Promise<GitService> {

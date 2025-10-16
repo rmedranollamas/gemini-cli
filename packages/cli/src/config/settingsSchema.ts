@@ -14,6 +14,8 @@ import type {
 import {
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_GEMINI_FLASH_MODEL,
 } from '@google/gemini-cli-core';
 import type { CustomTheme } from '../ui/themes/theme.js';
 
@@ -1000,6 +1002,37 @@ const SETTINGS_SCHEMA = {
         description:
           'Enable model routing to route requests to the best model based on complexity.',
         showInDialog: true,
+      },
+      router: {
+        type: 'object',
+        label: 'Model Router Configuration',
+        category: 'Experimental',
+        requiresRestart: true,
+        default: {},
+        description: 'Settings for configuring the model router.',
+        showInDialog: false,
+        properties: {
+          simpleTaskModel: {
+            type: 'string',
+            label: 'Simple Task Model',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: DEFAULT_GEMINI_FLASH_MODEL,
+            description:
+              'The model to use for simple, well-defined tasks when the model router is enabled.',
+            showInDialog: true,
+          },
+          complexTaskModel: {
+            type: 'string',
+            label: 'Complex Task Model',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: DEFAULT_GEMINI_MODEL,
+            description:
+              'The model to use for complex, multi-step, or ambiguous tasks when the model router is enabled.',
+            showInDialog: true,
+          },
+        },
       },
     },
   },
