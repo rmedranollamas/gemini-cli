@@ -558,38 +558,36 @@ describe('Server Config (config.ts)', () => {
     });
   });
 
-  describe('UseModelRouter Configuration', () => {
-    it('should default useModelRouter to false when not provided', () => {
+  describe('Model Router Configuration', () => {
+    it('should default useModelRouter to false when modelRouter settings are not provided', () => {
       const config = new Config(baseParams);
       expect(config.getUseModelRouter()).toBe(false);
     });
 
-    it('should set useModelRouter to true when provided as true', () => {
-      const paramsWithModelRouter: ConfigParameters = {
+    it('should set useModelRouter to true when enabled is true', () => {
+      const params: ConfigParameters = {
         ...baseParams,
-        useModelRouter: true,
+        modelRouter: { enabled: true },
       };
-      const config = new Config(paramsWithModelRouter);
+      const config = new Config(params);
       expect(config.getUseModelRouter()).toBe(true);
     });
 
-    it('should set useModelRouter to false when explicitly provided as false', () => {
-      const paramsWithModelRouter: ConfigParameters = {
+    it('should set useModelRouter to false when enabled is false', () => {
+      const params: ConfigParameters = {
         ...baseParams,
-        useModelRouter: false,
+        modelRouter: { enabled: false },
       };
-      const config = new Config(paramsWithModelRouter);
+      const config = new Config(params);
       expect(config.getUseModelRouter()).toBe(false);
     });
-  });
 
-  describe('Model Router Task Models Configuration', () => {
-    it('should default simpleTaskModel to DEFAULT_GEMINI_FLASH_MODEL when not provided', () => {
+    it('should default simpleTaskModel to DEFAULT_GEMINI_FLASH_MODEL', () => {
       const config = new Config(baseParams);
       expect(config.getSimpleTaskModel()).toBe('gemini-2.5-flash');
     });
 
-    it('should default complexTaskModel to DEFAULT_GEMINI_MODEL when not provided', () => {
+    it('should default complexTaskModel to DEFAULT_GEMINI_MODEL', () => {
       const config = new Config(baseParams);
       expect(config.getComplexTaskModel()).toBe('gemini-2.5-pro');
     });
@@ -598,7 +596,7 @@ describe('Server Config (config.ts)', () => {
       const customModel = 'my-custom-flash';
       const params: ConfigParameters = {
         ...baseParams,
-        simpleTaskModel: customModel,
+        modelRouter: { simpleTaskModel: customModel },
       };
       const config = new Config(params);
       expect(config.getSimpleTaskModel()).toBe(customModel);
@@ -608,7 +606,7 @@ describe('Server Config (config.ts)', () => {
       const customModel = 'my-custom-pro';
       const params: ConfigParameters = {
         ...baseParams,
-        complexTaskModel: customModel,
+        modelRouter: { complexTaskModel: customModel },
       };
       const config = new Config(params);
       expect(config.getComplexTaskModel()).toBe(customModel);

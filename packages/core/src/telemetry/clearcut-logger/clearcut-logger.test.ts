@@ -322,7 +322,7 @@ describe('ClearcutLogger', () => {
       ]);
 
       const { logger } = setup({
-        config: { useSmartEdit: true, useModelRouter: true },
+        config: { useSmartEdit: true, modelRouter: { enabled: true } },
       });
 
       vi.stubEnv('TERM_PROGRAM', 'vscode');

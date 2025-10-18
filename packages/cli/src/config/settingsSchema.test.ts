@@ -316,34 +316,28 @@ describe('SettingsSchema', () => {
       ).toBe('Enable debug logging of keystrokes to the console.');
     });
 
-    it('should have useModelRouter setting in schema', () => {
-      expect(
-        getSettingsSchema().experimental.properties.useModelRouter,
-      ).toBeDefined();
-      expect(
-        getSettingsSchema().experimental.properties.useModelRouter.type,
-      ).toBe('boolean');
-      expect(
-        getSettingsSchema().experimental.properties.useModelRouter.category,
-      ).toBe('Experimental');
-      expect(
-        getSettingsSchema().experimental.properties.useModelRouter.default,
-      ).toBe(true);
-    });
+    it('should have modelRouter settings in schema', () => {
+      const modelRouterSchema =
+        getSettingsSchema().experimental.properties.modelRouter;
+      expect(modelRouterSchema).toBeDefined();
+      expect(modelRouterSchema.type).toBe('object');
+      expect(modelRouterSchema.category).toBe('Experimental');
 
-    it('should have router settings in schema', () => {
-      const routerSchema = getSettingsSchema().experimental.properties.router;
-      expect(routerSchema).toBeDefined();
-      expect(routerSchema.type).toBe('object');
-      expect(routerSchema.category).toBe('Experimental');
+      const enabledSchema = modelRouterSchema.properties?.enabled;
+      expect(enabledSchema).toBeDefined();
+      expect(enabledSchema?.type).toBe('boolean');
+      expect(enabledSchema?.category).toBe('Experimental');
+      expect(enabledSchema?.default).toBe(true);
 
-      const simpleTaskModelSchema = routerSchema.properties?.simpleTaskModel;
+      const simpleTaskModelSchema =
+        modelRouterSchema.properties?.simpleTaskModel;
       expect(simpleTaskModelSchema).toBeDefined();
       expect(simpleTaskModelSchema?.type).toBe('string');
       expect(simpleTaskModelSchema?.category).toBe('Experimental');
       expect(simpleTaskModelSchema?.default).toBe('gemini-2.5-flash');
 
-      const complexTaskModelSchema = routerSchema.properties?.complexTaskModel;
+      const complexTaskModelSchema =
+        modelRouterSchema.properties?.complexTaskModel;
       expect(complexTaskModelSchema).toBeDefined();
       expect(complexTaskModelSchema?.type).toBe('string');
       expect(complexTaskModelSchema?.category).toBe('Experimental');

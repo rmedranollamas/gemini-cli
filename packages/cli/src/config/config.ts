@@ -589,7 +589,7 @@ export async function loadCliConfig(
     );
   }
 
-  const useModelRouter = settings.experimental?.useModelRouter ?? true;
+  const useModelRouter = settings.experimental?.modelRouter?.enabled ?? true;
   const defaultModel = useModelRouter
     ? DEFAULT_GEMINI_MODEL_AUTO
     : DEFAULT_GEMINI_MODEL;
@@ -673,11 +673,9 @@ export async function loadCliConfig(
     output: {
       format: (argv.outputFormat ?? settings.output?.format) as OutputFormat,
     },
-    useModelRouter,
+    modelRouter: settings.experimental?.modelRouter,
     enableMessageBusIntegration:
       settings.tools?.enableMessageBusIntegration ?? false,
-    simpleTaskModel: settings.experimental?.router?.simpleTaskModel,
-    complexTaskModel: settings.experimental?.router?.complexTaskModel,
   });
 }
 

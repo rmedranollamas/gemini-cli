@@ -254,10 +254,12 @@ export interface ConfigParameters {
   useWriteTodos?: boolean;
   policyEngineConfig?: PolicyEngineConfig;
   output?: OutputSettings;
-  useModelRouter?: boolean;
+  modelRouter?: {
+    enabled?: boolean;
+    simpleTaskModel?: string;
+    complexTaskModel?: string;
+  };
   enableMessageBusIntegration?: boolean;
-  simpleTaskModel?: string;
-  complexTaskModel?: string;
 }
 
 export class Config {
@@ -435,11 +437,13 @@ export class Config {
     this.enableToolOutputTruncation = params.enableToolOutputTruncation ?? true;
     this.useSmartEdit = params.useSmartEdit ?? true;
     this.useWriteTodos = params.useWriteTodos ?? false;
-    this.useModelRouter = params.useModelRouter ?? false;
+    this.useModelRouter = params.modelRouter?.enabled ?? false;
     this.enableMessageBusIntegration =
       params.enableMessageBusIntegration ?? false;
-    this.simpleTaskModel = params.simpleTaskModel ?? DEFAULT_GEMINI_FLASH_MODEL;
-    this.complexTaskModel = params.complexTaskModel ?? DEFAULT_GEMINI_MODEL;
+    this.simpleTaskModel =
+      params.modelRouter?.simpleTaskModel ?? DEFAULT_GEMINI_FLASH_MODEL;
+    this.complexTaskModel =
+      params.modelRouter?.complexTaskModel ?? DEFAULT_GEMINI_MODEL;
     this.extensionManagement = params.extensionManagement ?? true;
     this.storage = new Storage(this.targetDir);
     this.enablePromptCompletion = params.enablePromptCompletion ?? false;

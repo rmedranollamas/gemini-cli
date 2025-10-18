@@ -993,25 +993,25 @@ const SETTINGS_SCHEMA = {
         description: 'Enable extension management features.',
         showInDialog: false,
       },
-      useModelRouter: {
-        type: 'boolean',
-        label: 'Use Model Router',
-        category: 'Experimental',
-        requiresRestart: true,
-        default: true,
-        description:
-          'Enable model routing to route requests to the best model based on complexity.',
-        showInDialog: true,
-      },
-      router: {
+      modelRouter: {
         type: 'object',
-        label: 'Model Router Configuration',
+        label: 'Model Router',
         category: 'Experimental',
         requiresRestart: true,
         default: {},
         description: 'Settings for configuring the model router.',
         showInDialog: false,
         properties: {
+          enabled: {
+            type: 'boolean',
+            label: 'Enable Model Router',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: true,
+            description:
+              'Enable model routing to route requests to the best model based on complexity.',
+            showInDialog: true,
+          },
           simpleTaskModel: {
             type: 'string',
             label: 'Simple Task Model',

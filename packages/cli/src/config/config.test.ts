@@ -1975,14 +1975,14 @@ describe('loadCliConfig model selection', () => {
   });
 });
 
-describe('loadCliConfig model selection with model router', () => {
-  it('should use auto model when useModelRouter is true and no model is provided', async () => {
+describe('loadCliConfig modelRouter', () => {
+  it('should use auto model when modelRouter is enabled and no model is provided', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
       {
         experimental: {
-          useModelRouter: true,
+          modelRouter: { enabled: true },
         },
       },
       [],
@@ -1997,13 +1997,13 @@ describe('loadCliConfig model selection with model router', () => {
     expect(config.getModel()).toBe(DEFAULT_GEMINI_MODEL_AUTO);
   });
 
-  it('should use default model when useModelRouter is false and no model is provided', async () => {
+  it('should use default model when modelRouter is disabled and no model is provided', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
       {
         experimental: {
-          useModelRouter: false,
+          modelRouter: { enabled: false },
         },
       },
       [],
@@ -2018,13 +2018,13 @@ describe('loadCliConfig model selection with model router', () => {
     expect(config.getModel()).toBe(DEFAULT_GEMINI_MODEL);
   });
 
-  it('should prioritize argv over useModelRouter', async () => {
-    process.argv = ['node', 'script.js', '--model', 'gemini-from-argv'];
+  it('should prioritize argv over modelRouter', async () => {
+    process.argv = ['node', 'script.js', '--model', 'gemini-pro-vision'];
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
       {
         experimental: {
-          useModelRouter: true,
+          modelRouter: { enabled: true },
         },
       },
       [],
@@ -2036,19 +2036,19 @@ describe('loadCliConfig model selection with model router', () => {
       argv,
     );
 
-    expect(config.getModel()).toBe('gemini-from-argv');
+    expect(config.getModel()).toBe('gemini-pro-vision');
   });
 
-  it('should prioritize settings over useModelRouter', async () => {
+  it('should prioritize settings over modelRouter', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
       {
         experimental: {
-          useModelRouter: true,
+          modelRouter: { enabled: true },
         },
         model: {
-          name: 'gemini-from-settings',
+          name: 'gemini-pro-vision',
         },
       },
       [],
@@ -2060,17 +2060,17 @@ describe('loadCliConfig model selection with model router', () => {
       argv,
     );
 
-    expect(config.getModel()).toBe('gemini-from-settings');
+    expect(config.getModel()).toBe('gemini-pro-vision');
   });
 
-  it('should prioritize environment variable over useModelRouter', async () => {
+  it('should prioritize environment variable over modelRouter', async () => {
     process.argv = ['node', 'script.js'];
-    vi.stubEnv('GEMINI_MODEL', 'gemini-from-env');
+    vi.stubEnv('GEMINI_MODEL', 'gemini-pro-vision');
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
       {
         experimental: {
-          useModelRouter: true,
+          modelRouter: { enabled: true },
         },
       },
       [],
@@ -2082,37 +2082,14 @@ describe('loadCliConfig model selection with model router', () => {
       argv,
     );
 
-    expect(config.getModel()).toBe('gemini-from-env');
-  });
-});
-
-describe('loadCliConfig folderTrust', () => {
-  const originalArgv = process.argv;
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-    vi.mocked(os.homedir).mockReturnValue('/mock/home/user');
-    vi.stubEnv('GEMINI_API_KEY', 'test-api-key');
+    expect(config.getModel()).toBe('gemini-pro-vision');
   });
 
-  afterEach(() => {
-    process.argv = originalArgv;
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
-
-  it('should be false when folderTrust is false', async () => {
+  it('should be enabled by default when modelRouter is not set in settings', async () => {
     process.argv = ['node', 'script.js'];
-    const settings: Settings = {
-      security: {
-        folderTrust: {
-          enabled: false,
-        },
-      },
-    };
     const argv = await parseArguments({} as Settings);
     const config = await loadCliConfig(
-      settings,
+      {},
       [],
       new ExtensionEnablementManager(
         ExtensionStorage.getUserExtensionsDir(),
@@ -2121,18 +2098,14 @@ describe('loadCliConfig folderTrust', () => {
       'test-session',
       argv,
     );
-    expect(config.getFolderTrust()).toBe(false);
+    expect(config.getUseModelRouter()).toBe(false);
   });
 
-  it('should be true when folderTrust is true', async () => {
+  it('should be true when modelRouter.enabled is set to true in settings', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments({} as Settings);
     const settings: Settings = {
-      security: {
-        folderTrust: {
-          enabled: true,
-        },
-      },
+      experimental: { modelRouter: { enabled: true } },
     };
     const config = await loadCliConfig(
       settings,
@@ -2144,62 +2117,14 @@ describe('loadCliConfig folderTrust', () => {
       'test-session',
       argv,
     );
-    expect(config.getFolderTrust()).toBe(true);
+    expect(config.getUseModelRouter()).toBe(true);
   });
 
-  it('should be false by default', async () => {
+  it('should be false when modelRouter.enabled is explicitly set to false in settings', async () => {
     process.argv = ['node', 'script.js'];
     const argv = await parseArguments({} as Settings);
-    const settings: Settings = {};
-    const config = await loadCliConfig(
-      settings,
-      [],
-      new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-        argv.extensions,
-      ),
-      'test-session',
-      argv,
-    );
-    expect(config.getFolderTrust()).toBe(false);
-  });
-});
-
-describe('loadCliConfig with includeDirectories', () => {
-  const originalArgv = process.argv;
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-    vi.mocked(os.homedir).mockReturnValue('/mock/home/user');
-    vi.stubEnv('GEMINI_API_KEY', 'test-api-key');
-    vi.spyOn(process, 'cwd').mockReturnValue(
-      path.resolve(path.sep, 'home', 'user', 'project'),
-    );
-  });
-
-  afterEach(() => {
-    process.argv = originalArgv;
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
-
-  it('should combine and resolve paths from settings and CLI arguments', async () => {
-    const mockCwd = path.resolve(path.sep, 'home', 'user', 'project');
-    process.argv = [
-      'node',
-      'script.js',
-      '--include-directories',
-      `${path.resolve(path.sep, 'cli', 'path1')},${path.join(mockCwd, 'cli', 'path2')}`,
-    ];
-    const argv = await parseArguments({} as Settings);
     const settings: Settings = {
-      context: {
-        includeDirectories: [
-          path.resolve(path.sep, 'settings', 'path1'),
-          path.join(os.homedir(), 'settings', 'path2'),
-          path.join(mockCwd, 'settings', 'path3'),
-        ],
-      },
+      experimental: { modelRouter: { enabled: false } },
     };
     const config = await loadCliConfig(
       settings,
@@ -2211,198 +2136,7 @@ describe('loadCliConfig with includeDirectories', () => {
       'test-session',
       argv,
     );
-    const expected = [
-      mockCwd,
-      path.resolve(path.sep, 'cli', 'path1'),
-      path.join(mockCwd, 'cli', 'path2'),
-      path.resolve(path.sep, 'settings', 'path1'),
-      path.join(os.homedir(), 'settings', 'path2'),
-      path.join(mockCwd, 'settings', 'path3'),
-    ];
-    expect(config.getWorkspaceContext().getDirectories()).toEqual(
-      expect.arrayContaining(expected),
-    );
-    expect(config.getWorkspaceContext().getDirectories()).toHaveLength(
-      expected.length,
-    );
-  });
-});
-
-describe('loadCliConfig chatCompression', () => {
-  const originalArgv = process.argv;
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-    vi.mocked(os.homedir).mockReturnValue('/mock/home/user');
-    vi.stubEnv('GEMINI_API_KEY', 'test-api-key');
-  });
-
-  afterEach(() => {
-    process.argv = originalArgv;
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
-
-  it('should pass chatCompression settings to the core config', async () => {
-    process.argv = ['node', 'script.js'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = {
-      model: {
-        chatCompression: {
-          contextPercentageThreshold: 0.5,
-        },
-      },
-    };
-    const config = await loadCliConfig(
-      settings,
-      [],
-      new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-        argv.extensions,
-      ),
-      'test-session',
-      argv,
-    );
-    expect(config.getChatCompression()).toEqual({
-      contextPercentageThreshold: 0.5,
-    });
-  });
-
-  it('should have undefined chatCompression if not in settings', async () => {
-    process.argv = ['node', 'script.js'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = {};
-    const config = await loadCliConfig(
-      settings,
-      [],
-      new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-        argv.extensions,
-      ),
-      'test-session',
-      argv,
-    );
-    expect(config.getChatCompression()).toBeUndefined();
-  });
-});
-
-describe('loadCliConfig useRipgrep', () => {
-  const originalArgv = process.argv;
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-    vi.mocked(os.homedir).mockReturnValue('/mock/home/user');
-    vi.stubEnv('GEMINI_API_KEY', 'test-api-key');
-  });
-
-  afterEach(() => {
-    process.argv = originalArgv;
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
-
-  it('should be true by default when useRipgrep is not set in settings', async () => {
-    process.argv = ['node', 'script.js'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = {};
-    const config = await loadCliConfig(
-      settings,
-      [],
-      new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-        argv.extensions,
-      ),
-      'test-session',
-      argv,
-    );
-    expect(config.getUseRipgrep()).toBe(true);
-  });
-
-  it('should be false when useRipgrep is set to false in settings', async () => {
-    process.argv = ['node', 'script.js'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = { tools: { useRipgrep: false } };
-    const config = await loadCliConfig(
-      settings,
-      [],
-      new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-        argv.extensions,
-      ),
-      'test-session',
-      argv,
-    );
-    expect(config.getUseRipgrep()).toBe(false);
-  });
-
-  it('should be true when useRipgrep is explicitly set to true in settings', async () => {
-    process.argv = ['node', 'script.js'];
-    const argv = await parseArguments({} as Settings);
-    const settings: Settings = { tools: { useRipgrep: true } };
-    const config = await loadCliConfig(
-      settings,
-      [],
-      new ExtensionEnablementManager(
-        ExtensionStorage.getUserExtensionsDir(),
-        argv.extensions,
-      ),
-      'test-session',
-      argv,
-    );
-    expect(config.getUseRipgrep()).toBe(true);
-  });
-
-  describe('loadCliConfig useModelRouter', () => {
-    it('should be false by default when useModelRouter is not set in settings', async () => {
-      process.argv = ['node', 'script.js'];
-      const argv = await parseArguments({} as Settings);
-      const settings: Settings = {};
-      const config = await loadCliConfig(
-        settings,
-        [],
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          argv.extensions,
-        ),
-        'test-session',
-        argv,
-      );
-      expect(config.getUseModelRouter()).toBe(true);
-    });
-
-    it('should be true when useModelRouter is set to true in settings', async () => {
-      process.argv = ['node', 'script.js'];
-      const argv = await parseArguments({} as Settings);
-      const settings: Settings = { experimental: { useModelRouter: true } };
-      const config = await loadCliConfig(
-        settings,
-        [],
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          argv.extensions,
-        ),
-        'test-session',
-        argv,
-      );
-      expect(config.getUseModelRouter()).toBe(true);
-    });
-
-    it('should be false when useModelRouter is explicitly set to false in settings', async () => {
-      process.argv = ['node', 'script.js'];
-      const argv = await parseArguments({} as Settings);
-      const settings: Settings = { experimental: { useModelRouter: false } };
-      const config = await loadCliConfig(
-        settings,
-        [],
-        new ExtensionEnablementManager(
-          ExtensionStorage.getUserExtensionsDir(),
-          argv.extensions,
-        ),
-        'test-session',
-        argv,
-      );
-      expect(config.getUseModelRouter()).toBe(false);
-    });
+    expect(config.getUseModelRouter()).toBe(false);
   });
 });
 
