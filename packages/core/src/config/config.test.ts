@@ -7,7 +7,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Mock } from 'vitest';
 import type { ConfigParameters, SandboxConfig } from './config.js';
-import { Config, ApprovalMode } from './config.js';
+import {
+  Config,
+  ApprovalMode,
+  DEFAULT_FILE_FILTERING_OPTIONS,
+} from './config.js';
 import * as path from 'node:path';
 import { setGeminiMdFilename as mockSetGeminiMdFilename } from '../tools/memoryTool.js';
 import {
@@ -21,8 +25,6 @@ import {
 } from '../core/contentGenerator.js';
 import { GeminiClient } from '../core/client.js';
 import { GitService } from '../services/gitService.js';
-import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
-
 import { ShellTool } from '../tools/shell.js';
 import { ReadFileTool } from '../tools/read-file.js';
 import { GrepTool } from '../tools/grep.js';
@@ -77,7 +79,7 @@ vi.mock('../tools/memoryTool', () => ({
   setGeminiMdFilename: vi.fn(),
   getCurrentGeminiMdFilename: vi.fn(() => 'GEMINI.md'), // Mock the original filename
   DEFAULT_CONTEXT_FILENAME: 'GEMINI.md',
-  GEMINI_CONFIG_DIR: '.gemini',
+  GEMINI_DIR: '.gemini',
 }));
 
 vi.mock('../core/contentGenerator.js');
@@ -125,6 +127,18 @@ vi.mock('../ide/ide-client.js', () => ({
   },
 }));
 
+vi.mock('../agents/registry.js', () => {
+  const AgentRegistryMock = vi.fn();
+  AgentRegistryMock.prototype.initialize = vi.fn();
+  AgentRegistryMock.prototype.getAllDefinitions = vi.fn(() => []);
+  AgentRegistryMock.prototype.getDefinition = vi.fn();
+  return { AgentRegistry: AgentRegistryMock };
+});
+
+vi.mock('../agents/subagent-tool-wrapper.js', () => ({
+  SubagentToolWrapper: vi.fn(),
+}));
+
 import { BaseLlmClient } from '../core/baseLlmClient.js';
 import { tokenLimit } from '../core/tokenLimits.js';
 import { uiTelemetryService } from '../telemetry/index.js';
@@ -143,7 +157,6 @@ describe('Server Config (config.ts)', () => {
   const TARGET_DIR = '/path/to/target';
   const DEBUG_MODE = false;
   const QUESTION = 'test question';
-  const FULL_CONTEXT = false;
   const USER_MEMORY = 'Test User Memory';
   const TELEMETRY_SETTINGS = { enabled: false };
   const EMBEDDING_MODEL = 'gemini-embedding';
@@ -155,7 +168,6 @@ describe('Server Config (config.ts)', () => {
     targetDir: TARGET_DIR,
     debugMode: DEBUG_MODE,
     question: QUESTION,
-    fullContext: FULL_CONTEXT,
     userMemory: USER_MEMORY,
     telemetry: TELEMETRY_SETTINGS,
     sessionId: SESSION_ID,
@@ -166,10 +178,6 @@ describe('Server Config (config.ts)', () => {
   beforeEach(() => {
     // Reset mocks if necessary
     vi.clearAllMocks();
-    vi.spyOn(
-      ClearcutLogger.prototype,
-      'logStartSessionEvent',
-    ).mockImplementation(() => undefined);
   });
 
   describe('initialize', () => {
@@ -307,7 +315,9 @@ describe('Server Config (config.ts)', () => {
 
   it('should set default file filtering settings when not provided', () => {
     const config = new Config(baseParams);
-    expect(config.getFileFilteringRespectGitIgnore()).toBe(true);
+    expect(config.getFileFilteringRespectGitIgnore()).toBe(
+      DEFAULT_FILE_FILTERING_OPTIONS.respectGitIgnore,
+    );
   });
 
   it('should set custom file filtering settings when provided', () => {
@@ -416,18 +426,6 @@ describe('Server Config (config.ts)', () => {
         expect(config.getUsageStatisticsEnabled()).toBe(enabled);
       },
     );
-
-    it('logs the session start event', async () => {
-      const config = new Config({
-        ...baseParams,
-        usageStatisticsEnabled: true,
-      });
-      await config.refreshAuth(AuthType.USE_GEMINI);
-
-      expect(
-        ClearcutLogger.prototype.logStartSessionEvent,
-      ).toHaveBeenCalledOnce();
-    });
   });
 
   describe('Telemetry Settings', () => {
@@ -613,6 +611,31 @@ describe('Server Config (config.ts)', () => {
     });
   });
 
+  describe('ContinueOnFailedApiCall Configuration', () => {
+    it('should default continueOnFailedApiCall to false when not provided', () => {
+      const config = new Config(baseParams);
+      expect(config.getContinueOnFailedApiCall()).toBe(true);
+    });
+
+    it('should set continueOnFailedApiCall to true when provided as true', () => {
+      const paramsWithContinueOnFailedApiCall: ConfigParameters = {
+        ...baseParams,
+        continueOnFailedApiCall: true,
+      };
+      const config = new Config(paramsWithContinueOnFailedApiCall);
+      expect(config.getContinueOnFailedApiCall()).toBe(true);
+    });
+
+    it('should set continueOnFailedApiCall to false when explicitly provided as false', () => {
+      const paramsWithContinueOnFailedApiCall: ConfigParameters = {
+        ...baseParams,
+        continueOnFailedApiCall: false,
+      };
+      const config = new Config(paramsWithContinueOnFailedApiCall);
+      expect(config.getContinueOnFailedApiCall()).toBe(false);
+    });
+  });
+
   describe('createToolRegistry', () => {
     it('should register a tool if coreTools contains an argument-specific pattern', async () => {
       const params: ConfigParameters = {
@@ -640,6 +663,74 @@ describe('Server Config (config.ts)', () => {
         registerToolMock as Mock
       ).mock.calls.some((call) => call[0] instanceof vi.mocked(ReadFileTool));
       expect(wasReadFileToolRegistered).toBe(false);
+    });
+
+    it('should register subagents as tools when codebaseInvestigatorSettings.enabled is true', async () => {
+      const params: ConfigParameters = {
+        ...baseParams,
+        codebaseInvestigatorSettings: { enabled: true },
+      };
+      const config = new Config(params);
+
+      const mockAgentDefinition = {
+        name: 'codebase-investigator',
+        description: 'Agent 1',
+        instructions: 'Inst 1',
+      };
+
+      const AgentRegistryMock = (
+        (await vi.importMock('../agents/registry.js')) as {
+          AgentRegistry: Mock;
+        }
+      ).AgentRegistry;
+      AgentRegistryMock.prototype.getDefinition.mockReturnValue(
+        mockAgentDefinition,
+      );
+
+      const SubagentToolWrapperMock = (
+        (await vi.importMock('../agents/subagent-tool-wrapper.js')) as {
+          SubagentToolWrapper: Mock;
+        }
+      ).SubagentToolWrapper;
+
+      await config.initialize();
+
+      const registerToolMock = (
+        (await vi.importMock('../tools/tool-registry')) as {
+          ToolRegistry: { prototype: { registerTool: Mock } };
+        }
+      ).ToolRegistry.prototype.registerTool;
+
+      expect(SubagentToolWrapperMock).toHaveBeenCalledTimes(1);
+      expect(SubagentToolWrapperMock).toHaveBeenCalledWith(
+        mockAgentDefinition,
+        config,
+        undefined,
+      );
+
+      const calls = registerToolMock.mock.calls;
+      const registeredWrappers = calls.filter(
+        (call) => call[0] instanceof SubagentToolWrapperMock,
+      );
+      expect(registeredWrappers).toHaveLength(1);
+    });
+
+    it('should not register subagents as tools when codebaseInvestigatorSettings.enabled is false', async () => {
+      const params: ConfigParameters = {
+        ...baseParams,
+        codebaseInvestigatorSettings: { enabled: false },
+      };
+      const config = new Config(params);
+
+      const SubagentToolWrapperMock = (
+        (await vi.importMock('../agents/subagent-tool-wrapper.js')) as {
+          SubagentToolWrapper: Mock;
+        }
+      ).SubagentToolWrapper;
+
+      await config.initialize();
+
+      expect(SubagentToolWrapperMock).not.toHaveBeenCalled();
     });
 
     describe('with minified tool class names', () => {
@@ -916,6 +1007,40 @@ describe('setApprovalMode with folder trust', () => {
   });
 });
 
+describe('isYoloModeDisabled', () => {
+  const baseParams: ConfigParameters = {
+    sessionId: 'test',
+    targetDir: '.',
+    debugMode: false,
+    model: 'test-model',
+    cwd: '.',
+  };
+
+  it('should return false when yolo mode is not disabled and folder is trusted', () => {
+    const config = new Config(baseParams);
+    vi.spyOn(config, 'isTrustedFolder').mockReturnValue(true);
+    expect(config.isYoloModeDisabled()).toBe(false);
+  });
+
+  it('should return true when yolo mode is disabled by parameter', () => {
+    const config = new Config({ ...baseParams, disableYoloMode: true });
+    vi.spyOn(config, 'isTrustedFolder').mockReturnValue(true);
+    expect(config.isYoloModeDisabled()).toBe(true);
+  });
+
+  it('should return true when folder is untrusted', () => {
+    const config = new Config(baseParams);
+    vi.spyOn(config, 'isTrustedFolder').mockReturnValue(false);
+    expect(config.isYoloModeDisabled()).toBe(true);
+  });
+
+  it('should return true when yolo is disabled and folder is untrusted', () => {
+    const config = new Config({ ...baseParams, disableYoloMode: true });
+    vi.spyOn(config, 'isTrustedFolder').mockReturnValue(false);
+    expect(config.isYoloModeDisabled()).toBe(true);
+  });
+});
+
 describe('BaseLlmClient Lifecycle', () => {
   const MODEL = 'gemini-pro';
   const SANDBOX: SandboxConfig = {
@@ -925,7 +1050,6 @@ describe('BaseLlmClient Lifecycle', () => {
   const TARGET_DIR = '/path/to/target';
   const DEBUG_MODE = false;
   const QUESTION = 'test question';
-  const FULL_CONTEXT = false;
   const USER_MEMORY = 'Test User Memory';
   const TELEMETRY_SETTINGS = { enabled: false };
   const EMBEDDING_MODEL = 'gemini-embedding';
@@ -937,7 +1061,6 @@ describe('BaseLlmClient Lifecycle', () => {
     targetDir: TARGET_DIR,
     debugMode: DEBUG_MODE,
     question: QUESTION,
-    fullContext: FULL_CONTEXT,
     userMemory: USER_MEMORY,
     telemetry: TELEMETRY_SETTINGS,
     sessionId: SESSION_ID,
