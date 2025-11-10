@@ -360,7 +360,7 @@ function main() {
   if (args.length === 0) {
     setupLinters();
     runESLint();
-    runActionlint();
+    runActionlint(); // Re-enabled
     runShellcheck();
     runYamllint();
     runPrettier();
