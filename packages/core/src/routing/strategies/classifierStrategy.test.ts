@@ -13,7 +13,7 @@ import {
   isFunctionCall,
   isFunctionResponse,
 } from '../../utils/messageInspectors.js';
-import { DEFAULT_GEMINI_FLASH_LITE_MODEL } from '../../config/models.js';
+
 import { promptIdContext } from '../../utils/promptIdContext.js';
 import type { Content } from '@google/genai';
 
@@ -59,14 +59,7 @@ describe('ClassifierStrategy', () => {
 
     expect(mockBaseLlmClient.generateJson).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
-        config: expect.objectContaining({
-          temperature: 0,
-          maxOutputTokens: 1024,
-          thinkingConfig: {
-            thinkingBudget: 512,
-          },
-        }),
+        modelConfigKey: { model: 'classifier' },
         promptId: 'test-prompt-id',
       }),
     );

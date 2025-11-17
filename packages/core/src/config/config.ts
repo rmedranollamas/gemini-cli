@@ -5,6 +5,7 @@
  */
 
 import * as path from 'node:path';
+import { inspect } from 'node:util';
 import process from 'node:process';
 import type {
   ContentGenerator,
@@ -27,7 +28,6 @@ import { SmartEditTool } from '../tools/smart-edit.js';
 import { ShellTool } from '../tools/shell.js';
 import { WriteFileTool } from '../tools/write-file.js';
 import { WebFetchTool } from '../tools/web-fetch.js';
-import { ReadManyFilesTool } from '../tools/read-many-files.js';
 import { MemoryTool, setGeminiMdFilename } from '../tools/memoryTool.js';
 import { WebSearchTool } from '../tools/web-search.js';
 import { GeminiClient } from '../core/client.js';
@@ -84,6 +84,7 @@ import { AgentRegistry } from '../agents/registry.js';
 import { setGlobalProxy } from '../utils/fetch.js';
 import { SubagentToolWrapper } from '../agents/subagent-tool-wrapper.js';
 import { getExperiments } from '../code_assist/experiments/experiments.js';
+import { ExperimentFlags } from '../code_assist/experiments/flagNames.js';
 import { debugLogger } from '../utils/debugLogger.js';
 
 import { ApprovalMode } from '../policy/types.js';
@@ -255,6 +256,8 @@ export interface ConfigParameters {
   model: string;
   maxSessionTurns?: number;
   experimentalZedIntegration?: boolean;
+  listSessions?: boolean;
+  deleteSession?: string;
   listExtensions?: boolean;
   extensionLoader?: ExtensionLoader;
   enabledExtensions?: string[];
@@ -266,6 +269,8 @@ export interface ConfigParameters {
   folderTrust?: boolean;
   ideMode?: boolean;
   loadMemoryFromIncludeDirectories?: boolean;
+  importFormat?: 'tree' | 'flat';
+  discoveryMaxDirs?: number;
   compressionThreshold?: number;
   interactive?: boolean;
   trustedFolder?: boolean;
@@ -313,7 +318,7 @@ export class Config {
   private blockedMcpServers: string[];
   private promptRegistry!: PromptRegistry;
   private agentRegistry!: AgentRegistry;
-  private readonly sessionId: string;
+  private sessionId: string;
   private fileSystemService: FileSystemService;
   private contentGeneratorConfig!: ContentGeneratorConfig;
   private contentGenerator!: ContentGenerator;
@@ -362,6 +367,8 @@ export class Config {
 
   private inFallbackMode = false;
   private readonly maxSessionTurns: number;
+  private readonly listSessions: boolean;
+  private readonly deleteSession: string | undefined;
   private readonly listExtensions: boolean;
   private readonly _extensionLoader: ExtensionLoader;
   private readonly _enabledExtensions: string[];
@@ -373,6 +380,8 @@ export class Config {
     | undefined;
   private readonly experimentalZedIntegration: boolean = false;
   private readonly loadMemoryFromIncludeDirectories: boolean = false;
+  private readonly importFormat: 'tree' | 'flat';
+  private readonly discoveryMaxDirs: number;
   private readonly compressionThreshold: number | undefined;
   private readonly interactive: boolean;
   private readonly ptyInfo: string;
@@ -478,6 +487,8 @@ export class Config {
     this.maxSessionTurns = params.maxSessionTurns ?? -1;
     this.experimentalZedIntegration =
       params.experimentalZedIntegration ?? false;
+    this.listSessions = params.listSessions ?? false;
+    this.deleteSession = params.deleteSession;
     this.listExtensions = params.listExtensions ?? false;
     this._extensionLoader =
       params.extensionLoader ?? new SimpleExtensionLoader([]);
@@ -488,6 +499,8 @@ export class Config {
     this.ideMode = params.ideMode ?? false;
     this.loadMemoryFromIncludeDirectories =
       params.loadMemoryFromIncludeDirectories ?? false;
+    this.importFormat = params.importFormat ?? 'tree';
+    this.discoveryMaxDirs = params.discoveryMaxDirs ?? 200;
     this.compressionThreshold = params.compressionThreshold;
     this.interactive = params.interactive ?? false;
     this.ptyInfo = params.ptyInfo ?? 'child_process';
@@ -508,7 +521,7 @@ export class Config {
       params.truncateToolOutputLines ?? DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES;
     this.enableToolOutputTruncation = params.enableToolOutputTruncation ?? true;
     this.useSmartEdit = params.useSmartEdit ?? true;
-    this.useWriteTodos = params.useWriteTodos ?? false;
+    this.useWriteTodos = params.useWriteTodos ?? true;
     this.initialUseModelRouter = params.modelRouter?.enabled ?? false;
     this.useModelRouter = this.initialUseModelRouter;
     this.simpleTaskModel =
@@ -716,8 +729,20 @@ export class Config {
     return this.sessionId;
   }
 
+  setSessionId(sessionId: string): void {
+    this.sessionId = sessionId;
+  }
+
   shouldLoadMemoryFromIncludeDirectories(): boolean {
     return this.loadMemoryFromIncludeDirectories;
+  }
+
+  getImportFormat(): 'tree' | 'flat' {
+    return this.importFormat;
+  }
+
+  getDiscoveryMaxDirs(): number {
+    return this.discoveryMaxDirs;
   }
 
   getContentGeneratorConfig(): ContentGeneratorConfig {
@@ -729,12 +754,11 @@ export class Config {
   }
 
   setModel(newModel: string): void {
-    this.setFallbackMode(false);
-
-    if (this.model !== newModel) {
+    if (this.model !== newModel || this.inFallbackMode) {
       this.model = newModel;
       coreEvents.emitModelChanged(newModel);
     }
+    this.setFallbackMode(false);
   }
 
   isInFallbackMode(): boolean {
@@ -825,7 +849,7 @@ export class Config {
    *
    * May change over time.
    */
-  getExcludeTools(): string[] | undefined {
+  getExcludeTools(): Set<string> | undefined {
     const excludeToolsSet = new Set([...(this.excludeTools ?? [])]);
     for (const extension of this.getExtensionLoader().getExtensions()) {
       if (!extension.isActive) {
@@ -835,7 +859,7 @@ export class Config {
         excludeToolsSet.add(tool);
       }
     }
-    return [...excludeToolsSet];
+    return excludeToolsSet;
   }
 
   getToolDiscoveryCommand(): string | undefined {
@@ -1032,6 +1056,14 @@ export class Config {
     return this.listExtensions;
   }
 
+  getListSessions(): boolean {
+    return this.listSessions;
+  }
+
+  getDeleteSession(): string | undefined {
+    return this.deleteSession;
+  }
+
   getExtensionManagement(): boolean {
     return this.extensionManagement;
   }
@@ -1125,21 +1157,32 @@ export class Config {
       return this.compressionThreshold;
     }
 
-    if (this.experimentsPromise) {
-      try {
-        await this.experimentsPromise;
-      } catch (e) {
-        debugLogger.debug('Failed to fetch experiments', e);
-      }
-    }
+    await this.ensureExperimentsLoaded();
 
     const remoteThreshold =
-      this.experiments?.flags['GeminiCLIContextCompression__threshold_fraction']
+      this.experiments?.flags[ExperimentFlags.CONTEXT_COMPRESSION_THRESHOLD]
         ?.floatValue;
     if (remoteThreshold === 0) {
       return undefined;
     }
     return remoteThreshold;
+  }
+
+  async getUserCaching(): Promise<boolean | undefined> {
+    await this.ensureExperimentsLoaded();
+
+    return this.experiments?.flags[ExperimentFlags.USER_CACHING]?.boolValue;
+  }
+
+  private async ensureExperimentsLoaded(): Promise<void> {
+    if (!this.experimentsPromise) {
+      return;
+    }
+    try {
+      await this.experimentsPromise;
+    } catch (e) {
+      debugLogger.debug('Failed to fetch experiments', e);
+    }
   }
 
   isInteractiveShellEnabled(): boolean {
@@ -1289,7 +1332,6 @@ export class Config {
       const className = ToolClass.name;
       const toolName = ToolClass.Name || className;
       const coreTools = this.getCoreTools();
-      const excludeTools = this.getExcludeTools() || [];
       // On some platforms, the className can be minified to _ClassName.
       const normalizedClassName = className.replace(/^_+/, '');
 
@@ -1302,14 +1344,6 @@ export class Config {
             tool.startsWith(`${toolName}(`) ||
             tool.startsWith(`${normalizedClassName}(`),
         );
-      }
-
-      const isExcluded = excludeTools.some(
-        (tool) => tool === toolName || tool === normalizedClassName,
-      );
-
-      if (isExcluded) {
-        isEnabled = false;
       }
 
       if (isEnabled) {
@@ -1355,7 +1389,6 @@ export class Config {
     }
     registerCoreTool(WriteFileTool, this);
     registerCoreTool(WebFetchTool, this);
-    registerCoreTool(ReadManyFilesTool, this);
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
     registerCoreTool(WebSearchTool, this);
@@ -1370,15 +1403,12 @@ export class Config {
       );
       if (definition) {
         // We must respect the main allowed/exclude lists for agents too.
-        const excludeTools = this.getExcludeTools() || [];
-
         const allowedTools = this.getAllowedTools();
 
-        const isExcluded = excludeTools.includes(definition.name);
         const isAllowed =
           !allowedTools || allowedTools.includes(definition.name);
 
-        if (isAllowed && !isExcluded) {
+        if (isAllowed) {
           const messageBusEnabled = this.getEnableMessageBusIntegration();
           const wrapper = new SubagentToolWrapper(
             definition,
@@ -1414,6 +1444,44 @@ export class Config {
    */
   setExperiments(experiments: Experiments): void {
     this.experiments = experiments;
+    const flagSummaries = Object.entries(experiments.flags ?? {})
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, flag]) => {
+        const summary: Record<string, unknown> = { name };
+        if (flag.boolValue !== undefined) {
+          summary['boolValue'] = flag.boolValue;
+        }
+        if (flag.floatValue !== undefined) {
+          summary['floatValue'] = flag.floatValue;
+        }
+        if (flag.intValue !== undefined) {
+          summary['intValue'] = flag.intValue;
+        }
+        if (flag.stringValue !== undefined) {
+          summary['stringValue'] = flag.stringValue;
+        }
+        const int32Length = flag.int32ListValue?.values?.length ?? 0;
+        if (int32Length > 0) {
+          summary['int32ListLength'] = int32Length;
+        }
+        const stringListLength = flag.stringListValue?.values?.length ?? 0;
+        if (stringListLength > 0) {
+          summary['stringListLength'] = stringListLength;
+        }
+        return summary;
+      });
+    const summary = {
+      experimentIds: experiments.experimentIds ?? [],
+      flags: flagSummaries,
+    };
+    const summaryString = inspect(summary, {
+      depth: null,
+      maxArrayLength: null,
+      maxStringLength: null,
+      breakLength: 80,
+      compact: false,
+    });
+    debugLogger.debug('Experiments loaded', summaryString);
   }
 }
 // Export model constants for use in CLI
