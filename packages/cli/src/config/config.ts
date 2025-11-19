@@ -421,8 +421,8 @@ export async function loadCliConfig(
   };
 
   const includeDirectories = (settings.context?.includeDirectories || [])
-    .map(resolvePath)
-    .concat((argv.includeDirectories || []).map(resolvePath));
+    .map((p) => resolvePath(p, cwd))
+    .concat((argv.includeDirectories || []).map((p) => resolvePath(p, cwd)));
 
   const extensionManager = new ExtensionManager({
     settings,
