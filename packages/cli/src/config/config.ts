@@ -388,7 +388,10 @@ export async function loadCliConfig(
   // directly to the Config constructor in core, and have core handle setGeminiMdFilename.
   // However, loadHierarchicalGeminiMemory is called *before* createServerConfig.
   if (settings.context?.fileName) {
-    setServerGeminiMdFilename(settings.context.fileName);
+    const resolvedFileNames = Array.isArray(settings.context.fileName)
+      ? settings.context.fileName.map((name) => resolvePath(name, cwd))
+      : resolvePath(settings.context.fileName, cwd);
+    setServerGeminiMdFilename(resolvedFileNames);
   } else {
     // Reset to default if not provided in settings.
     setServerGeminiMdFilename(getCurrentGeminiMdFilename());
@@ -490,6 +493,9 @@ export async function loadCliConfig(
       env: process.env as unknown as Record<string, string | undefined>,
       settings: settings.telemetry,
     });
+    if (telemetrySettings.outfile) {
+      telemetrySettings.outfile = resolvePath(telemetrySettings.outfile, cwd);
+    }
   } catch (err) {
     if (err instanceof FatalConfigError) {
       throw new FatalConfigError(
@@ -652,8 +658,12 @@ export async function loadCliConfig(
     enableMessageBusIntegration,
     codebaseInvestigatorSettings:
       settings.experimental?.codebaseInvestigatorSettings,
-    fakeResponses: argv.fakeResponses,
-    recordResponses: argv.recordResponses,
+    fakeResponses: argv.fakeResponses
+      ? resolvePath(argv.fakeResponses, cwd)
+      : undefined,
+    recordResponses: argv.recordResponses
+      ? resolvePath(argv.recordResponses, cwd)
+      : undefined,
     retryFetchErrors: settings.general?.retryFetchErrors ?? false,
     ptyInfo: ptyInfo?.name,
     modelConfigServiceConfig: settings.modelConfigs,
