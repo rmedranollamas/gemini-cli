@@ -16,6 +16,7 @@ import {
   setGeminiMdFilename as setServerGeminiMdFilename,
   getCurrentGeminiMdFilename,
   ApprovalMode,
+  DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_FILE_FILTERING_OPTIONS,
@@ -569,12 +570,7 @@ export async function loadCliConfig(
     extraExcludes.length > 0 ? extraExcludes : undefined,
   );
 
-  const defaultModel = DEFAULT_GEMINI_MODEL_AUTO;
-  const resolvedModel: string =
-    argv.model ||
-    process.env['GEMINI_MODEL'] ||
-    settings.model?.name ||
-    defaultModel;
+  const { model: resolvedModel, useModelRouter } = resolveModel(settings, argv);
 
   const sandboxConfig = await loadSandboxConfig(settings, argv);
   const screenReader =
@@ -691,4 +687,21 @@ function mergeExcludeTools(
     ...(extraExcludes || []),
   ]);
   return [...allExcludeTools];
+}
+
+function resolveModel(
+  settings: Settings,
+  argv: CliArgs,
+): { model: string; useModelRouter: boolean } {
+  const useModelRouter = settings.experimental?.router?.enabled ?? false;
+  const defaultModel = useModelRouter
+    ? DEFAULT_GEMINI_MODEL_AUTO
+    : DEFAULT_GEMINI_MODEL;
+  const model =
+    argv.model ||
+    process.env['GEMINI_MODEL'] ||
+    settings.model?.name ||
+    defaultModel;
+
+  return { model, useModelRouter };
 }

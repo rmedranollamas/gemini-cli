@@ -21,6 +21,7 @@ import {
   DEFAULT_MODEL_CONFIGS,
   GEMINI_MODEL_ALIAS_PRO,
   DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
 } from '@google/gemini-cli-core';
 import type { CustomTheme } from '../ui/themes/theme.js';
 import type { SessionRetentionSettings } from './settings.js';
@@ -1411,6 +1412,16 @@ const SETTINGS_SCHEMA = {
         description: 'Settings for configuring the model router.',
         showInDialog: false,
         properties: {
+          enabled: {
+            type: 'boolean',
+            label: 'Enable Model Router',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: false,
+            description:
+              'Enable the model router to automatically select models based on task complexity.',
+            showInDialog: true,
+          },
           simpleTaskModel: {
             type: 'string',
             label: 'Simple Task Model',

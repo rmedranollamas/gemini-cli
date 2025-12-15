@@ -16,6 +16,7 @@ import {
   WEB_FETCH_TOOL_NAME,
   type ExtensionLoader,
   debugLogger,
+  DEFAULT_GEMINI_MODEL,
 } from '@google/gemini-cli-core';
 import { loadCliConfig, parseArguments, type CliArgs } from './config.js';
 import type { Settings } from './settings.js';
@@ -100,16 +101,21 @@ vi.mock('@google/gemini-cli-core', async () => {
     loadEnvironment: vi.fn(),
     loadServerHierarchicalMemory: vi.fn(
       (
-        cwd,
-        dirs,
-        debug,
-        fileService,
+        _cwd,
+        _dirs,
+        _debug,
+        _fileService,
         extensionLoader: ExtensionLoader,
         _maxDirs,
       ) => {
-        const extensionPaths = extensionLoader
-          .getExtensions()
-          .flatMap((e) => e.contextFiles);
+        let extensionPaths: string[] = [];
+        try {
+          extensionPaths = extensionLoader
+            .getExtensions()
+            .flatMap((e) => e.contextFiles);
+        } catch {
+          // Extensions might not be loaded yet or mocked improperly, ignore.
+        }
         return Promise.resolve({
           memoryContent: extensionPaths.join(',') || '',
           fileCount: extensionPaths?.length || 0,
@@ -1283,7 +1289,7 @@ describe('loadCliConfig model selection', () => {
       argv,
     );
 
-    expect(config.getModel()).toBe('auto');
+    expect(config.getModel()).toBe(DEFAULT_GEMINI_MODEL);
   });
 
   it('always prefers model from argv', async () => {
