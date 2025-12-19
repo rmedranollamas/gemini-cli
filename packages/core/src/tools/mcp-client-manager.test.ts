@@ -29,6 +29,7 @@ vi.mock('./mcp-client.js', async () => {
 describe('McpClientManager', () => {
   let mockedMcpClient: MockedObject<McpClient>;
   let mockConfig: MockedObject<Config>;
+  let toolRegistry: ToolRegistry;
 
   beforeEach(() => {
     mockedMcpClient = vi.mockObject({
@@ -43,6 +44,7 @@ describe('McpClientManager', () => {
       isTrustedFolder: vi.fn().mockReturnValue(true),
       getMcpServers: vi.fn().mockReturnValue({}),
       getPromptRegistry: () => {},
+      getResourceRegistry: () => {},
       getDebugMode: () => false,
       getWorkspaceContext: () => {},
       getAllowedMcpServers: vi.fn().mockReturnValue([]),
@@ -55,6 +57,7 @@ describe('McpClientManager', () => {
         enabled: false,
       }),
     } as unknown as Config);
+    toolRegistry = {} as ToolRegistry;
   });
 
   afterEach(() => {
@@ -65,7 +68,7 @@ describe('McpClientManager', () => {
     mockConfig.getMcpServers.mockReturnValue({
       'test-server': {},
     });
-    const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+    const manager = new McpClientManager(toolRegistry, mockConfig);
     await manager.startConfiguredMcpServers();
     expect(mockedMcpClient.connect).toHaveBeenCalledOnce();
     expect(mockedMcpClient.discover).toHaveBeenCalledOnce();
@@ -76,7 +79,7 @@ describe('McpClientManager', () => {
       'test-server': {},
     });
     mockConfig.isTrustedFolder.mockReturnValue(false);
-    const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+    const manager = new McpClientManager(toolRegistry, mockConfig);
     await manager.startConfiguredMcpServers();
     expect(mockedMcpClient.connect).not.toHaveBeenCalled();
     expect(mockedMcpClient.discover).not.toHaveBeenCalled();
@@ -87,7 +90,7 @@ describe('McpClientManager', () => {
       'test-server': {},
     });
     mockConfig.getBlockedMcpServers.mockReturnValue(['test-server']);
-    const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+    const manager = new McpClientManager(toolRegistry, mockConfig);
     await manager.startConfiguredMcpServers();
     expect(mockedMcpClient.connect).not.toHaveBeenCalled();
     expect(mockedMcpClient.discover).not.toHaveBeenCalled();
@@ -99,14 +102,14 @@ describe('McpClientManager', () => {
       'another-server': {},
     });
     mockConfig.getAllowedMcpServers.mockReturnValue(['another-server']);
-    const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+    const manager = new McpClientManager(toolRegistry, mockConfig);
     await manager.startConfiguredMcpServers();
     expect(mockedMcpClient.connect).toHaveBeenCalledOnce();
     expect(mockedMcpClient.discover).toHaveBeenCalledOnce();
   });
 
   it('should start servers from extensions', async () => {
-    const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+    const manager = new McpClientManager(toolRegistry, mockConfig);
     await manager.startExtension({
       name: 'test-extension',
       mcpServers: {
@@ -123,7 +126,7 @@ describe('McpClientManager', () => {
   });
 
   it('should not start servers from disabled extensions', async () => {
-    const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+    const manager = new McpClientManager(toolRegistry, mockConfig);
     await manager.startExtension({
       name: 'test-extension',
       mcpServers: {
@@ -144,7 +147,7 @@ describe('McpClientManager', () => {
       'test-server': {},
     });
     mockConfig.getBlockedMcpServers.mockReturnValue(['test-server']);
-    const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+    const manager = new McpClientManager(toolRegistry, mockConfig);
     await manager.startConfiguredMcpServers();
     expect(manager.getBlockedMcpServers()).toEqual([
       { name: 'test-server', extensionName: '' },
@@ -157,7 +160,7 @@ describe('McpClientManager', () => {
         'test-server': {},
       });
       mockedMcpClient.getServerConfig.mockReturnValue({});
-      const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+      const manager = new McpClientManager(toolRegistry, mockConfig);
       await manager.startConfiguredMcpServers();
 
       expect(mockedMcpClient.connect).toHaveBeenCalledTimes(1);
@@ -176,7 +179,7 @@ describe('McpClientManager', () => {
         'test-server': {},
       });
       mockedMcpClient.getServerConfig.mockReturnValue({});
-      const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+      const manager = new McpClientManager(toolRegistry, mockConfig);
       await manager.startConfiguredMcpServers();
 
       expect(mockedMcpClient.connect).toHaveBeenCalledTimes(1);
@@ -190,7 +193,7 @@ describe('McpClientManager', () => {
     });
 
     it('should throw an error if the server does not exist', async () => {
-      const manager = new McpClientManager({} as ToolRegistry, mockConfig);
+      const manager = new McpClientManager(toolRegistry, mockConfig);
       await expect(manager.restartServer('non-existent')).rejects.toThrow(
         'No MCP server registered with the name "non-existent"',
       );
@@ -198,8 +201,7 @@ describe('McpClientManager', () => {
   });
 
   describe('getMcpInstructions', () => {
-    it('should only return instructions from servers with useInstructions: true', async () => {
-      // Override McpClient mock for this test to return distinct objects based on config
+    it('should not return instructions for servers that do not have instructions', async () => {
       vi.mocked(McpClient).mockImplementation(
         (name, config) =>
           ({
@@ -209,42 +211,34 @@ describe('McpClientManager', () => {
             getServerConfig: vi.fn().mockReturnValue(config),
             getInstructions: vi
               .fn()
-              .mockReturnValue(`Instructions for ${name}`),
+              .mockReturnValue(
+                name === 'server-with-instructions'
+                  ? `Instructions for ${name}`
+                  : '',
+              ),
           }) as unknown as McpClient,
       );
 
       const manager = new McpClientManager({} as ToolRegistry, mockConfig);
 
-      // 1. Configured server with useInstructions: true
       mockConfig.getMcpServers.mockReturnValue({
-        'enabled-server': {
-          useInstructions: true,
-        },
-        'disabled-server': {
-          useInstructions: false,
-        },
-        'default-server': {
-          // undefined should be treated as false
-        },
+        'server-with-instructions': {},
+        'server-without-instructions': {},
       });
       await manager.startConfiguredMcpServers();
 
       const instructions = manager.getMcpInstructions();
 
       expect(instructions).toContain(
-        "# Instructions for MCP Server 'enabled-server'",
+        "# Instructions for MCP Server 'server-with-instructions'",
       );
-      expect(instructions).toContain('Instructions for enabled-server');
+      expect(instructions).toContain(
+        'Instructions for server-with-instructions',
+      );
 
       expect(instructions).not.toContain(
-        "# Instructions for MCP Server 'disabled-server'",
+        "# Instructions for MCP Server 'server-without-instructions'",
       );
-      expect(instructions).not.toContain('Instructions for disabled-server');
-
-      expect(instructions).not.toContain(
-        "# Instructions for MCP Server 'default-server'",
-      );
-      expect(instructions).not.toContain('Instructions for default-server');
     });
   });
 });
