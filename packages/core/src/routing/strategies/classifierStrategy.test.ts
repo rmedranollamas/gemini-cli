@@ -13,6 +13,7 @@ import {
   isFunctionCall,
   isFunctionResponse,
 } from '../../utils/messageInspectors.js';
+
 import { promptIdContext } from '../../utils/promptIdContext.js';
 import type { Content } from '@google/genai';
 import { debugLogger } from '../../utils/debugLogger.js';

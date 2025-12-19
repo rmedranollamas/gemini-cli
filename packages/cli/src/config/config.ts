@@ -16,7 +16,6 @@ import {
   setGeminiMdFilename as setServerGeminiMdFilename,
   getCurrentGeminiMdFilename,
   ApprovalMode,
-  DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_FILE_FILTERING_OPTIONS,
@@ -33,6 +32,7 @@ import {
   loadServerHierarchicalMemory,
   WEB_FETCH_TOOL_NAME,
   getVersion,
+  PREVIEW_GEMINI_MODEL_AUTO,
 } from '@google/gemini-cli-core';
 import type { Settings } from './settings.js';
 
@@ -636,8 +636,6 @@ export async function loadCliConfig(
     extensionLoader: extensionManager,
     enableExtensionReloading: settings.experimental?.extensionReloading,
     enableAgents: settings.experimental?.enableAgents,
-    enableModelAvailabilityService:
-      settings.experimental?.isModelAvailabilityServiceEnabled,
     experimentalJitContext: settings.experimental?.jitContext,
     noBrowser: !!process.env['NO_BROWSER'],
     summarizeToolOutput: settings.model?.summarizeToolOutput,
@@ -694,9 +692,13 @@ function resolveModel(
   argv: CliArgs,
 ): { model: string; useModelRouter: boolean } {
   const useModelRouter = settings.experimental?.router?.enabled ?? false;
-  const defaultModel = useModelRouter
-    ? DEFAULT_GEMINI_MODEL_AUTO
-    : DEFAULT_GEMINI_MODEL;
+
+  const defaultAutoModel = settings.general?.previewFeatures
+    ? PREVIEW_GEMINI_MODEL_AUTO
+    : DEFAULT_GEMINI_MODEL_AUTO;
+
+  const defaultModel = defaultAutoModel;
+
   const model =
     argv.model ||
     process.env['GEMINI_MODEL'] ||
