@@ -955,6 +955,16 @@ const SETTINGS_SCHEMA = {
               'The maximum time in seconds allowed without output from the shell command. Defaults to 5 minutes.',
             showInDialog: false,
           },
+          enableShellOutputEfficiency: {
+            type: 'boolean',
+            label: 'Enable Shell Output Efficiency',
+            category: 'Tools',
+            requiresRestart: false,
+            default: true,
+            description:
+              'Enable shell output efficiency optimizations for better performance.',
+            showInDialog: false,
+          },
         },
       },
       autoAccept: {
@@ -968,6 +978,7 @@ const SETTINGS_SCHEMA = {
         `,
         showInDialog: true,
       },
+
       core: {
         type: 'array',
         label: 'Core Tools',
@@ -1063,18 +1074,6 @@ const SETTINGS_SCHEMA = {
         requiresRestart: true,
         default: DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
         description: 'The number of lines to keep when truncating tool output.',
-        showInDialog: true,
-      },
-      enableMessageBusIntegration: {
-        type: 'boolean',
-        label: 'Enable Message Bus Integration',
-        category: 'Tools',
-        requiresRestart: true,
-        default: true,
-        description: oneLine`
-          Enable policy-based tool confirmation via message bus integration.
-          When enabled, tools automatically respect policy engine decisions (ALLOW/DENY/ASK_USER) without requiring individual tool implementations.
-        `,
         showInDialog: true,
       },
       enableHooks: {

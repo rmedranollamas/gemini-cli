@@ -314,7 +314,7 @@ export interface ConfigParameters {
   policyEngineConfig?: PolicyEngineConfig;
   output?: OutputSettings;
   useModelRouter?: boolean;
-  enableMessageBusIntegration?: boolean;
+
   disableModelRouterForAuth?: AuthType[];
   codebaseInvestigatorSettings?: CodebaseInvestigatorSettings;
   introspectionAgentSettings?: IntrospectionAgentSettings;
@@ -442,7 +442,6 @@ export class Config {
   private readonly outputSettings: OutputSettings;
   private useModelRouter: boolean;
   private readonly initialUseModelRouter: boolean;
-  private readonly enableMessageBusIntegration: boolean;
   private readonly codebaseInvestigatorSettings: CodebaseInvestigatorSettings;
   private readonly introspectionAgentSettings: IntrospectionAgentSettings;
   private readonly continueOnFailedApiCall: boolean;
@@ -589,14 +588,6 @@ export class Config {
         ? params.hooks.disabled
         : undefined) ?? [];
 
-    // Enable MessageBus integration if:
-    // 1. Explicitly enabled via setting, OR
-    // 2. Hooks are enabled and hooks are configured
-    const hasHooks = params.hooks && Object.keys(params.hooks).length > 0;
-    const hooksNeedMessageBus = this.enableHooks && hasHooks;
-    this.enableMessageBusIntegration =
-      params.enableMessageBusIntegration ??
-      (hooksNeedMessageBus ? true : false);
     this.codebaseInvestigatorSettings = {
       enabled: params.codebaseInvestigatorSettings?.enabled ?? true,
       maxNumTurns: params.codebaseInvestigatorSettings?.maxNumTurns ?? 10,
@@ -889,13 +880,13 @@ export class Config {
     return this.model;
   }
 
-  setModel(newModel: string): void {
+  setModel(newModel: string, isFallbackModel: boolean = false): void {
     if (this.model !== newModel || this._activeModel !== newModel) {
       this.model = newModel;
       // When the user explicitly sets a model, that becomes the active model.
       this._activeModel = newModel;
       coreEvents.emitModelChanged(newModel);
-      if (this.onModelChange) {
+      if (this.onModelChange && !isFallbackModel) {
         this.onModelChange(newModel);
       }
     }
@@ -1604,10 +1595,6 @@ export class Config {
     return this.policyEngine;
   }
 
-  getEnableMessageBusIntegration(): boolean {
-    return this.enableMessageBusIntegration;
-  }
-
   getEnableHooks(): boolean {
     return this.enableHooks;
   }
@@ -1624,9 +1611,7 @@ export class Config {
     const registry = new ToolRegistry(this);
 
     // Set message bus on tool registry before discovery so MCP tools can access it
-    if (this.getEnableMessageBusIntegration()) {
-      registry.setMessageBus(this.messageBus);
-    }
+    registry.setMessageBus(this.messageBus);
 
     // helper to create & register core tools that are enabled
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1652,11 +1637,7 @@ export class Config {
         // Pass message bus to tools when feature flag is enabled
         // This first implementation is only focused on the general case of
         // the tool registry.
-        const messageBusEnabled = this.getEnableMessageBusIntegration();
-
-        const toolArgs = messageBusEnabled
-          ? [...args, this.getMessageBus()]
-          : args;
+        const toolArgs = [...args, this.getMessageBus()];
 
         registry.registerTool(new ToolClass(...toolArgs));
       }
@@ -1710,11 +1691,10 @@ export class Config {
         !allowedTools || allowedTools.includes(DELEGATE_TO_AGENT_TOOL_NAME);
 
       if (isAllowed) {
-        const messageBusEnabled = this.getEnableMessageBusIntegration();
         const delegateTool = new DelegateToAgentTool(
           this.agentRegistry,
           this,
-          messageBusEnabled ? this.getMessageBus() : undefined,
+          this.getMessageBus(),
         );
         registry.registerTool(delegateTool);
       }
