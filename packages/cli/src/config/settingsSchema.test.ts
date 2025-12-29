@@ -416,8 +416,9 @@ describe('SettingsSchema', () => {
     });
   });
 
-  it('should have router settings in schema', () => {
-    const routerSchema = getSettingsSchema().experimental.properties.router;
+  it('should have modelRouter settings in schema', () => {
+    const routerSchema =
+      getSettingsSchema().experimental.properties.modelRouter;
     expect(routerSchema).toBeDefined();
     expect(routerSchema.type).toBe('object');
     expect(routerSchema.category).toBe('Experimental');

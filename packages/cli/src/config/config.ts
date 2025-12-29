@@ -700,8 +700,8 @@ export async function loadCliConfig(
     // TODO: loading of hooks based on workspace trust
     enableHooks: settings.tools?.enableHooks ?? false,
     hooks: settings.hooks || {},
-    simpleTaskModel: settings.experimental?.router?.simpleTaskModel,
-    complexTaskModel: settings.experimental?.router?.complexTaskModel,
+    simpleTaskModel: settings.experimental?.modelRouter?.simpleTaskModel,
+    complexTaskModel: settings.experimental?.modelRouter?.complexTaskModel,
     projectHooks: projectHooks || {},
     onModelChange: (model: string) => saveModelChange(loadedSettings, model),
   });
@@ -722,7 +722,7 @@ function resolveModel(
   settings: Settings,
   argv: CliArgs,
 ): { model: string; useModelRouter: boolean } {
-  const useModelRouter = settings.experimental?.router?.enabled ?? false;
+  const useModelRouter = settings.experimental?.modelRouter?.enabled ?? false;
 
   const defaultAutoModel = settings.general?.previewFeatures
     ? PREVIEW_GEMINI_MODEL_AUTO

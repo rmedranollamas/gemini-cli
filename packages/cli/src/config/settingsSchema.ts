@@ -1447,7 +1447,7 @@ const SETTINGS_SCHEMA = {
           },
         },
       },
-      router: {
+      modelRouter: {
         type: 'object',
         label: 'Model Router Configuration',
         category: 'Experimental',

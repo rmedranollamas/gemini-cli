@@ -1418,7 +1418,7 @@
           },
           "additionalProperties": false
         },
-        "router": {
+        "modelRouter": {
           "title": "Model Router Configuration",
           "description": "Settings for configuring the model router.",
           "markdownDescription": "Settings for configuring the model router.\n\n- Category: `Experimental`\n- Requires restart: `yes`\n- Default: `{}`",
