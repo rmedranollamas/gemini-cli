@@ -7,6 +7,7 @@
 import yargs from 'yargs/yargs';
 import { hideBin } from 'yargs/helpers';
 import process from 'node:process';
+import * as path from 'node:path';
 import { mcpCommand } from '../commands/mcp.js';
 import { extensionsCommand } from '../commands/extensions.js';
 import { hooksCommand } from '../commands/hooks.js';
@@ -436,6 +437,19 @@ export async function loadCliConfig(
 
   const includeDirectories = (settings.context?.includeDirectories || [])
     .map((p) => resolvePath(p, cwd))
+    .filter((p) => {
+      const relative = path.relative(cwd, p);
+      if (
+        (relative.startsWith('..') && !path.isAbsolute(relative)) ||
+        path.isAbsolute(relative)
+      ) {
+        debugLogger.warn(
+          `Ignoring includeDirectory '${p}' because it is outside the project root.`,
+        );
+        return false;
+      }
+      return true;
+    })
     .concat((argv.includeDirectories || []).map((p) => resolvePath(p, cwd)));
 
   const extensionManager = new ExtensionManager({

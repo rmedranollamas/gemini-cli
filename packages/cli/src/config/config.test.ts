@@ -1407,21 +1407,17 @@ describe('loadCliConfig with includeDirectories', () => {
     };
     const config = await loadCliConfig(settings, 'test-session', argv);
     const expected = [
-      mockCwd,
       path.resolve(path.sep, 'cli', 'path1'),
       path.join(mockCwd, 'cli', 'path2'),
-      path.resolve(path.sep, 'settings', 'path1'),
-      path.join(os.homedir(), 'settings', 'path2'),
+      // Settings paths that are outside CWD should be filtered out
       path.join(mockCwd, 'settings', 'path3'),
     ];
     const directories = config.getWorkspaceContext().getDirectories();
     expect(directories).toEqual([mockCwd]);
     expect(config.getPendingIncludeDirectories()).toEqual(
-      expect.arrayContaining(expected.filter((dir) => dir !== mockCwd)),
+      expect.arrayContaining(expected),
     );
-    expect(config.getPendingIncludeDirectories()).toHaveLength(
-      expected.length - 1,
-    );
+    expect(config.getPendingIncludeDirectories()).toHaveLength(expected.length);
   });
 });
 
