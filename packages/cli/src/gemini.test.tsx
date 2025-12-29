@@ -29,6 +29,7 @@ import {
   type Config,
   type ResumedSessionData,
   debugLogger,
+  coreEvents,
 } from '@google/gemini-cli-core';
 import { act } from 'react';
 import { type InitializationResult } from './core/initializer.js';
@@ -114,6 +115,7 @@ vi.mock('./config/settings.js', () => ({
       security: { auth: {} },
       ui: {},
     },
+    workspace: { settings: {} },
     setValue: vi.fn(),
     forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
     errors: [],
@@ -289,6 +291,7 @@ describe('gemini.tsx main function', () => {
         security: { auth: {} },
         ui: {},
       },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
     } as never);
@@ -522,6 +525,7 @@ describe('gemini.tsx main function kitty protocol', () => {
         security: { auth: {} },
         ui: {},
       },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
     } as never);
@@ -583,6 +587,7 @@ describe('gemini.tsx main function kitty protocol', () => {
         security: { auth: {} },
         ui: {},
       },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
       errors: [],
@@ -669,6 +674,7 @@ describe('gemini.tsx main function kitty protocol', () => {
         security: { auth: {} },
         ui: {},
       },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
       errors: [],
@@ -737,6 +743,7 @@ describe('gemini.tsx main function kitty protocol', () => {
         security: { auth: {} },
         ui: { theme: 'non-existent-theme' },
       },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
       errors: [],
@@ -813,12 +820,11 @@ describe('gemini.tsx main function kitty protocol', () => {
       .mockImplementation((code) => {
         throw new MockProcessExitError(code);
       });
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
+    const emitFeedbackSpy = vi.spyOn(coreEvents, 'emitFeedback');
 
     vi.mocked(loadSettings).mockReturnValue({
       merged: { advanced: {}, security: { auth: {} }, ui: { theme: 'test' } },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
       errors: [],
@@ -868,12 +874,13 @@ describe('gemini.tsx main function kitty protocol', () => {
       if (!(e instanceof MockProcessExitError)) throw e;
     }
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(emitFeedbackSpy).toHaveBeenCalledWith(
+      'error',
       expect.stringContaining('Error resuming session: Session not found'),
     );
     expect(processExitSpy).toHaveBeenCalledWith(42);
     processExitSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
+    emitFeedbackSpy.mockRestore();
   });
 
   it.skip('should log error when cleanupExpiredSessions fails', async () => {
@@ -898,6 +905,7 @@ describe('gemini.tsx main function kitty protocol', () => {
 
     vi.mocked(loadSettings).mockReturnValue({
       merged: { advanced: {}, security: { auth: {} }, ui: {} },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
       errors: [],
@@ -971,6 +979,7 @@ describe('gemini.tsx main function kitty protocol', () => {
 
     vi.mocked(loadSettings).mockReturnValue({
       merged: { advanced: {}, security: { auth: {} }, ui: {} },
+      workspace: { settings: {} },
       setValue: vi.fn(),
       forScope: () => ({ settings: {}, originalSettings: {}, path: '' }),
       errors: [],
@@ -1118,6 +1127,7 @@ describe('gemini.tsx main function exit codes', () => {
         security: { auth: { selectedType: 'google', useExternal: false } },
         ui: {},
       },
+      workspace: { settings: {} },
       errors: [],
     } as never);
     vi.mocked(parseArguments).mockResolvedValue({} as unknown as CliArgs);
@@ -1174,6 +1184,7 @@ describe('gemini.tsx main function exit codes', () => {
     } as unknown as Config);
     vi.mocked(loadSettings).mockReturnValue({
       merged: { security: { auth: {} }, ui: {} },
+      workspace: { settings: {} },
       errors: [],
     } as never);
     vi.mocked(parseArguments).mockResolvedValue({
@@ -1237,6 +1248,7 @@ describe('gemini.tsx main function exit codes', () => {
     } as unknown as Config);
     vi.mocked(loadSettings).mockReturnValue({
       merged: { security: { auth: {} }, ui: {} },
+      workspace: { settings: {} },
       errors: [],
     } as never);
     vi.mocked(parseArguments).mockResolvedValue({} as unknown as CliArgs);
