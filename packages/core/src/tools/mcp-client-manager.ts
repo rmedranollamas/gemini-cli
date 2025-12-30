@@ -386,7 +386,7 @@ export class McpClientManager {
 
   private async checkServerHealth() {
     const { unhealthyTimeoutMs } = this.cliConfig.getMcpAutoRestartConfig();
-    for (const [name] of this.clients.entries()) {
+    for (const name of Array.from(this.clients.keys())) {
       const lastHealthUpdate = this.serverHealth.get(name);
       if (
         lastHealthUpdate &&
