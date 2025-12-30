@@ -535,7 +535,6 @@ export class Config {
     this.fileDiscoveryService = params.fileDiscoveryService ?? null;
     this.bugCommand = params.bugCommand;
     this.model = params.model;
-    this.model = params.model;
     this.mcpAutoRestart = {
       enabled: params.mcpAutoRestart?.enabled ?? true,
       healthCheckIntervalMs:

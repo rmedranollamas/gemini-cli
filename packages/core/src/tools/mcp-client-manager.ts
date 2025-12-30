@@ -313,6 +313,11 @@ export class McpClientManager {
    * This is the cleanup method to be called on application exit.
    */
   async stop(): Promise<void> {
+    if (this.healthCheckInterval) {
+      clearTimeout(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
+
     const disconnectionPromises = Array.from(this.clients.entries()).map(
       async ([name, client]) => {
         try {
@@ -352,19 +357,31 @@ export class McpClientManager {
 
   private startHealthChecker() {
     if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
+      clearTimeout(this.healthCheckInterval);
     }
 
     const { enabled, healthCheckIntervalMs } =
       this.cliConfig.getMcpAutoRestartConfig();
 
     if (!enabled) {
+      this.healthCheckInterval = undefined;
       return;
     }
 
-    this.healthCheckInterval = setInterval(() => {
-      void this.checkServerHealth();
-    }, healthCheckIntervalMs);
+    const runHealthCheck = async () => {
+      await this.checkServerHealth();
+      if (this.healthCheckInterval) {
+        this.healthCheckInterval = setTimeout(
+          runHealthCheck,
+          healthCheckIntervalMs,
+        );
+      }
+    };
+
+    this.healthCheckInterval = setTimeout(
+      runHealthCheck,
+      healthCheckIntervalMs,
+    );
   }
 
   private async checkServerHealth() {
