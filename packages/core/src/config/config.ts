@@ -48,6 +48,7 @@ import { tokenLimit } from '../core/tokenLimits.js';
 import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
   DEFAULT_GEMINI_MODEL_AUTO,
   isPreviewModel,
   PREVIEW_GEMINI_MODEL,
@@ -394,6 +395,9 @@ export interface ConfigParameters {
   experimentalJitContext?: boolean;
   disableLLMCorrection?: boolean;
   plan?: boolean;
+  useModelRouter?: boolean;
+  simpleTaskModel?: string;
+  complexTaskModel?: string;
   onModelChange?: (model: string) => void;
   mcpEnabled?: boolean;
   extensionsEnabled?: boolean;
@@ -551,6 +555,9 @@ export class Config {
   private readonly experimentalJitContext: boolean;
   private readonly disableLLMCorrection: boolean;
   private readonly planEnabled: boolean;
+  private readonly useModelRouter: boolean;
+  private readonly simpleTaskModel: string;
+  private readonly complexTaskModel: string;
   private contextManager?: ContextManager;
   private terminalBackground: string | undefined = undefined;
   private remoteAdminSettings: FetchAdminControlsResponse | undefined;
@@ -635,6 +642,9 @@ export class Config {
     this.disableLLMCorrection = params.disableLLMCorrection ?? true;
     this.planEnabled = params.plan ?? false;
     this.enableEventDrivenScheduler = params.enableEventDrivenScheduler ?? true;
+    this.useModelRouter = params.useModelRouter ?? true;
+    this.simpleTaskModel = params.simpleTaskModel ?? DEFAULT_GEMINI_FLASH_MODEL;
+    this.complexTaskModel = params.complexTaskModel ?? DEFAULT_GEMINI_MODEL;
     this.skillsSupport = params.skillsSupport ?? false;
     this.disabledSkills = params.disabledSkills ?? [];
     this.adminSkillsEnabled = params.adminSkillsEnabled ?? true;
@@ -1584,6 +1594,18 @@ export class Config {
 
   isPlanEnabled(): boolean {
     return this.planEnabled;
+  }
+
+  isModelRouterEnabled(): boolean {
+    return this.useModelRouter;
+  }
+
+  getSimpleTaskModel(): string {
+    return this.simpleTaskModel;
+  }
+
+  getComplexTaskModel(): string {
+    return this.complexTaskModel;
   }
 
   isAgentsEnabled(): boolean {

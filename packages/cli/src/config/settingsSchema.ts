@@ -20,6 +20,9 @@ import {
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
   DEFAULT_MODEL_CONFIGS,
+  DEFAULT_GEMINI_FLASH_MODEL,
+  DEFAULT_GEMINI_MODEL,
+  GEMINI_MODEL_ALIAS_AUTO,
 } from '@google/gemini-cli-core';
 import type { CustomTheme } from '../ui/themes/theme.js';
 import type { SessionRetentionSettings } from './settings.js';
@@ -1459,6 +1462,107 @@ const SETTINGS_SCHEMA = {
         default: false,
         description: 'Enable Agent Skills (experimental).',
         showInDialog: true,
+      },
+      codebaseInvestigatorSettings: {
+        type: 'object',
+        label: 'Codebase Investigator Settings',
+        category: 'Experimental',
+        requiresRestart: true,
+        default: {},
+        description: 'Configuration for Codebase Investigator.',
+        showInDialog: false,
+        properties: {
+          enabled: {
+            type: 'boolean',
+            label: 'Enable Codebase Investigator',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: true,
+            description: 'Enable the Codebase Investigator agent.',
+            showInDialog: true,
+          },
+          maxNumTurns: {
+            type: 'number',
+            label: 'Codebase Investigator Max Num Turns',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: 10,
+            description:
+              'Maximum number of turns for the Codebase Investigator agent.',
+            showInDialog: true,
+          },
+          maxTimeMinutes: {
+            type: 'number',
+            label: 'Max Time (Minutes)',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: 3,
+            description:
+              'Maximum time for the Codebase Investigator agent (in minutes).',
+            showInDialog: false,
+          },
+          thinkingBudget: {
+            type: 'number',
+            label: 'Thinking Budget',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: 8192,
+            description:
+              'The thinking budget for the Codebase Investigator agent.',
+            showInDialog: false,
+          },
+          model: {
+            type: 'string',
+            label: 'Model',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: GEMINI_MODEL_ALIAS_AUTO,
+            description:
+              'The model to use for the Codebase Investigator agent.',
+            showInDialog: false,
+          },
+        },
+      },
+      modelRouter: {
+        type: 'object',
+        label: 'Model Router',
+        category: 'Experimental',
+        requiresRestart: true,
+        default: {},
+        description: 'Settings for configuring the model router.',
+        showInDialog: false,
+        properties: {
+          enabled: {
+            type: 'boolean',
+            label: 'Enable Model Router',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: true,
+            description:
+              'Enable model routing to route requests to the best model based on complexity.',
+            showInDialog: true,
+          },
+          simpleTaskModel: {
+            type: 'string',
+            label: 'Simple Task Model',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: DEFAULT_GEMINI_FLASH_MODEL,
+            description:
+              'The model to use for simple, well-defined tasks when the model router is enabled.',
+            showInDialog: true,
+          },
+          complexTaskModel: {
+            type: 'string',
+            label: 'Complex Task Model',
+            category: 'Experimental',
+            requiresRestart: true,
+            default: DEFAULT_GEMINI_MODEL,
+            description:
+              'The model to use for complex, multi-step, or ambiguous tasks when the model router is enabled.',
+            showInDialog: true,
+          },
+        },
       },
       useOSC52Paste: {
         type: 'boolean',

@@ -784,6 +784,9 @@ export async function loadCliConfig(
     disableLLMCorrection: settings.tools?.disableLLMCorrection,
     rawOutput: argv.rawOutput,
     acceptRawOutputRisk: argv.acceptRawOutputRisk,
+    useModelRouter: settings.experimental?.modelRouter?.enabled,
+    simpleTaskModel: settings.experimental?.modelRouter?.simpleTaskModel,
+    complexTaskModel: settings.experimental?.modelRouter?.complexTaskModel,
     modelConfigServiceConfig: settings.modelConfigs,
     // TODO: loading of hooks based on workspace trust
     enableHooks:
