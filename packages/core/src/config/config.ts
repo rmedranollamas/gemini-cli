@@ -341,6 +341,11 @@ export interface ConfigParameters {
   enableExtensionReloading?: boolean;
   allowedMcpServers?: string[];
   blockedMcpServers?: string[];
+  mcpAutoRestart?: {
+    enabled?: boolean;
+    healthCheckIntervalMs?: number;
+    unhealthyTimeoutMs?: number;
+  };
   allowedEnvironmentVariables?: string[];
   blockedEnvironmentVariables?: string[];
   enableEnvironmentVariableRedaction?: boolean;
@@ -410,6 +415,11 @@ export class Config {
   private mcpClientManager?: McpClientManager;
   private allowedMcpServers: string[];
   private blockedMcpServers: string[];
+  private readonly mcpAutoRestart: {
+    enabled: boolean;
+    healthCheckIntervalMs: number;
+    unhealthyTimeoutMs: number;
+  };
   private allowedEnvironmentVariables: string[];
   private blockedEnvironmentVariables: string[];
   private readonly enableEnvironmentVariableRedaction: boolean;
@@ -583,6 +593,12 @@ export class Config {
     this.extensionsEnabled = params.extensionsEnabled ?? true;
     this.allowedMcpServers = params.allowedMcpServers ?? [];
     this.blockedMcpServers = params.blockedMcpServers ?? [];
+    this.mcpAutoRestart = {
+      enabled: params.mcpAutoRestart?.enabled ?? true,
+      healthCheckIntervalMs:
+        params.mcpAutoRestart?.healthCheckIntervalMs ?? 15000,
+      unhealthyTimeoutMs: params.mcpAutoRestart?.unhealthyTimeoutMs ?? 30000,
+    };
     this.allowedEnvironmentVariables = params.allowedEnvironmentVariables ?? [];
     this.blockedEnvironmentVariables = params.blockedEnvironmentVariables ?? [];
     this.enableEnvironmentVariableRedaction =
@@ -1268,6 +1284,10 @@ export class Config {
 
   getBlockedMcpServers(): string[] | undefined {
     return this.blockedMcpServers;
+  }
+
+  getMcpAutoRestartConfig() {
+    return this.mcpAutoRestart;
   }
 
   get sanitizationConfig(): EnvironmentSanitizationConfig {
