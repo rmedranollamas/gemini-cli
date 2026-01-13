@@ -221,7 +221,20 @@ export class ChatCompressionService {
         promptId: `${promptId}-verify`,
       });
 
-    const finalSummary = getResponseText(verificationResponse) ?? summary;
+    const finalSummary = (
+      getResponseText(verificationResponse) ?? summary
+    ).trim();
+
+    if (!finalSummary) {
+      return {
+        newHistory: null,
+        info: {
+          originalTokenCount,
+          newTokenCount: originalTokenCount,
+          compressionStatus: CompressionStatus.COMPRESSION_FAILED_EMPTY_SUMMARY,
+        },
+      };
+    }
 
     const extraHistory: Content[] = [
       {
