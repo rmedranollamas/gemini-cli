@@ -912,6 +912,11 @@ describe('Settings Loading and Merging', () => {
       expect(settings.merged.mcp).toEqual({
         allowed: ['system-allowed'],
         excluded: ['workspace-excluded'],
+        autoRestart: {
+          enabled: true,
+          healthCheckIntervalMs: 15000,
+          unhealthyTimeoutMs: 30000,
+        },
       });
     });
 

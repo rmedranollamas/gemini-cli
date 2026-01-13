@@ -323,4 +323,73 @@ describe('McpClientManager', () => {
       await expect(manager.restartServer('test-server')).resolves.not.toThrow();
     });
   });
+
+  describe('health check', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should restart unresponsive servers and prevent concurrent restarts', async () => {
+      mockConfig.getMcpAutoRestartConfig.mockReturnValue({
+        enabled: true,
+        healthCheckIntervalMs: 1000,
+        unhealthyTimeoutMs: 5000,
+      });
+
+      const manager = new McpClientManager('0.0.1', toolRegistry, mockConfig);
+
+      mockConfig.getMcpServers.mockReturnValue({
+        'test-server': {},
+      });
+      mockedMcpClient.getServerConfig.mockReturnValue({});
+
+      // Mock maybeDiscoverMcpServer (via restartServer) to take some time
+      let resolveRestart: () => void;
+      const restartPromise = new Promise<void>((resolve) => {
+        resolveRestart = resolve;
+      });
+
+      // We need to spy on the manager's restartServer or just check calls to connect/disconnect
+      // Since maybeDiscoverMcpServer is private, we'll check mockedMcpClient calls.
+      // However, restartServer calls maybeDiscoverMcpServer which creates a new client if needed.
+      // In this test, it will reuse the existing mockedMcpClient because we mocked McpClient constructor.
+
+      await manager.startConfiguredMcpServers();
+
+      // Reset mocks after initial discovery
+      mockedMcpClient.disconnect.mockClear();
+      mockedMcpClient.connect.mockClear();
+
+      // Mock disconnect to be slow
+      mockedMcpClient.disconnect.mockReturnValue(restartPromise);
+
+      // Trigger health check by advancing time
+      // 1. Initial health update happens on connect
+      // 2. Advance time past unhealthyTimeoutMs
+      await vi.advanceTimersByTimeAsync(6000);
+
+      // First health check should have triggered restart
+      expect(mockedMcpClient.disconnect).toHaveBeenCalledTimes(1);
+
+      // Trigger another health check while first one is still "running" (disconnect not resolved)
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Should NOT have triggered another restart
+      expect(mockedMcpClient.disconnect).toHaveBeenCalledTimes(1);
+
+      // Resolve first restart
+      resolveRestart!();
+      // Allow async microtasks to finish (including the async IIFE in maybeDiscoverMcpServer)
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+
+      // After resolving, another health check should be able to trigger it again if still unhealthy
+      // but we need to advance time again past the unhealthy timeout
+      await vi.advanceTimersByTimeAsync(6000);
+      expect(mockedMcpClient.disconnect).toHaveBeenCalledTimes(2);
+    });
+  });
 });

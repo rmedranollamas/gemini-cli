@@ -42,6 +42,7 @@ export class McpClientManager {
     extensionName: string;
   }> = [];
   private serverHealth: Map<string, number> = new Map();
+  private restartingServers: Set<string> = new Set();
   private healthCheckInterval?: NodeJS.Timeout;
 
   constructor(
@@ -362,6 +363,10 @@ export class McpClientManager {
    * This is the cleanup method to be called on application exit.
    */
   async stop(): Promise<void> {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
+    }
     const disconnectionPromises = Array.from(this.clients.entries()).map(
       async ([name, client]) => {
         try {
@@ -459,11 +464,16 @@ export class McpClientManager {
   private async checkServerHealth() {
     const { unhealthyTimeoutMs } = this.cliConfig.getMcpAutoRestartConfig();
     for (const [name] of this.clients.entries()) {
+      if (this.restartingServers.has(name)) {
+        continue;
+      }
+
       const lastHealthUpdate = this.serverHealth.get(name);
       if (
         lastHealthUpdate &&
         Date.now() - lastHealthUpdate > unhealthyTimeoutMs
       ) {
+        this.restartingServers.add(name);
         coreEvents.emitFeedback(
           'info',
           `MCP server '${name}' is unresponsive. Restarting...`,
@@ -480,6 +490,8 @@ export class McpClientManager {
             `Failed to restart MCP server '${name}': ${getErrorMessage(error)}`,
             error,
           );
+        } finally {
+          this.restartingServers.delete(name);
         }
       }
     }
