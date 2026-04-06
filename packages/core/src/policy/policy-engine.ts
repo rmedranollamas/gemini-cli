@@ -10,6 +10,7 @@ import {
   initializeShellParsers,
   splitCommands,
   hasRedirection,
+  hasEnvPrefix,
   extractStringFromParseEntry,
 } from '../utils/shell-utils.js';
 import { parse as shellParse } from 'shell-quote';
@@ -298,6 +299,26 @@ export class PolicyEngine {
     return true;
   }
 
+  private shouldDowngradeForEnvPrefix(
+    command: string,
+    allowEnv?: boolean,
+  ): boolean {
+    if (allowEnv) return false;
+    if (!hasEnvPrefix(command)) return false;
+
+    // Do not downgrade (do not ask user) if sandboxing is enabled and in AUTO_EDIT or YOLO
+    const sandboxEnabled = !(this.sandboxManager instanceof NoopSandboxManager);
+    if (
+      sandboxEnabled &&
+      (this.approvalMode === ApprovalMode.AUTO_EDIT ||
+        this.approvalMode === ApprovalMode.YOLO)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
   /**
    * Check if a shell command is allowed.
    */
@@ -339,6 +360,7 @@ export class PolicyEngine {
     serverName: string | undefined,
     dir_path: string | undefined,
     allowRedirection?: boolean,
+    allowEnv?: boolean,
     rule?: PolicyRule,
     toolAnnotations?: Record<string, unknown>,
     subagent?: string,
@@ -403,6 +425,14 @@ export class PolicyEngine {
         responsibleRule = undefined; // Inherent policy
       }
 
+      if (this.shouldDowngradeForEnvPrefix(command, allowEnv)) {
+        debugLogger.debug(
+          `[PolicyEngine.check] Downgrading ALLOW to ASK_USER for command with env prefix: ${command}`,
+        );
+        aggregateDecision = PolicyDecision.ASK_USER;
+        responsibleRule = undefined; // Inherent policy
+      }
+
       for (const rawSubCmd of subCommands) {
         const subCmd = rawSubCmd.trim();
         // Prevent infinite recursion for the root command
@@ -412,6 +442,14 @@ export class PolicyEngine {
               `[PolicyEngine.check] Downgrading ALLOW to ASK_USER for redirected command: ${subCmd}`,
             );
             // Redirection always downgrades ALLOW to ASK_USER
+            if (aggregateDecision === PolicyDecision.ALLOW) {
+              aggregateDecision = PolicyDecision.ASK_USER;
+              responsibleRule = undefined; // Inherent policy
+            }
+          } else if (this.shouldDowngradeForEnvPrefix(subCmd, allowEnv)) {
+            debugLogger.debug(
+              `[PolicyEngine.check] Downgrading ALLOW to ASK_USER for command with env prefix: ${subCmd}`,
+            );
             if (aggregateDecision === PolicyDecision.ALLOW) {
               aggregateDecision = PolicyDecision.ASK_USER;
               responsibleRule = undefined; // Inherent policy
@@ -462,6 +500,20 @@ export class PolicyEngine {
         ) {
           debugLogger.debug(
             `[PolicyEngine.check] Downgrading ALLOW to ASK_USER for redirected command: ${subCmd}`,
+          );
+          if (aggregateDecision === PolicyDecision.ALLOW) {
+            aggregateDecision = PolicyDecision.ASK_USER;
+            responsibleRule = undefined;
+          }
+        }
+
+        // Check for env prefix in allowed sub-commands
+        if (
+          subDecision === PolicyDecision.ALLOW &&
+          this.shouldDowngradeForEnvPrefix(subCmd, allowEnv)
+        ) {
+          debugLogger.debug(
+            `[PolicyEngine.check] Downgrading ALLOW to ASK_USER for command with env prefix: ${subCmd}`,
           );
           if (aggregateDecision === PolicyDecision.ALLOW) {
             aggregateDecision = PolicyDecision.ASK_USER;
@@ -592,6 +644,7 @@ export class PolicyEngine {
             serverName,
             shellDirPath,
             rule.allowRedirection,
+            rule.allowEnv,
             rule,
             toolAnnotations,
             subagent,
@@ -638,6 +691,7 @@ export class PolicyEngine {
           heuristicDecision,
           serverName,
           shellDirPath,
+          false,
           false,
           undefined,
           toolAnnotations,
