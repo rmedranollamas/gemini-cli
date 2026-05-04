@@ -274,6 +274,10 @@ describe('hasRedirection', () => {
     expect(hasRedirection('ls -la')).toBe(false);
   });
 
+  it('should detect redirection within a subshell', () => {
+    expect(hasRedirection('(ls > output.txt)')).toBe(true);
+  });
+
   it('should return false for pipes (pipes are not redirections in this context)', () => {
     // Note: pipes are often handled separately by splitCommands, but checking here confirms they don't trigger "redirection" flag if we don't want them to.
     // However, the current implementation checks for 'redirected_statement' nodes.
@@ -332,6 +336,12 @@ describe('splitCommands', () => {
       'ls -l',
       'git status',
     ]);
+  });
+
+  it('should handle subshells', () => {
+    // Current behavior check: we want to see if it splits into sub-parts
+    // or keeps the subshell as one part.
+    expect(splitCommands('(ls -la > output.txt)')).toEqual(['ls -la']);
   });
 
   it('should filter out redirection tokens but keep command parts', () => {
@@ -671,6 +681,17 @@ describe('hasEnvPrefix', () => {
     expect(hasEnvPrefix('FOO=bar env cmd')).toBe(true);
     expect(hasEnvPrefix('env FOO="bar baz" cmd')).toBe(true);
     expect(hasEnvPrefix('env cmd')).toBe(true);
+  });
+
+  it('should detect environment variable assignments with command substitution', () => {
+    expect(hasEnvPrefix('FOO=$(rm -rf /) cmd')).toBe(true);
+    expect(hasEnvPrefix('FOO=`ls` cmd')).toBe(true);
+  });
+
+  it('should handle fallback regex cases', () => {
+    // When bash parser is not available or for other shells
+    expect(hasEnvPrefix('  env  ')).toBe(true);
+    expect(hasEnvPrefix('VAR=val')).toBe(true);
   });
 
   it('should not detect environment variables used in the command', () => {

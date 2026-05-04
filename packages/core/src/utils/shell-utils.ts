@@ -772,41 +772,48 @@ export function hasRedirection(command: string): boolean {
 
     const root = tree.rootNode;
     // tree-sitter-bash wraps everything in a program/document root.
-    // We check if the command is a simple, non-compound command.
+    // We check if the command contains any compound structures like lists or pipelines
+    // at the top level (or wrapped in redirected statements), in which case we
+    // return false to allow the policy engine to split them.
+    const compoundStack: Node[] = [root];
+    // If there are multiple top-level commands (e.g. separated by ';'), return false to split.
+    if (root.namedChildCount > 1) {
+      return false;
+    }
+
+    while (compoundStack.length > 0) {
+      const current = compoundStack.pop()!;
+      if (
+        current.type === 'list' ||
+        current.type === 'pipeline' ||
+        current.type === 'command_execution_list'
+      ) {
+        return false;
+      }
+      // Traverse into children, but stop at subshells as they are considered atomic for splitting.
+      if (current.type !== 'subshell') {
+        for (let i = current.childCount - 1; i >= 0; i -= 1) {
+          const child = current.child(i);
+          if (child) compoundStack.push(child);
+        }
+      }
+    }
+
+    // Now check for redirection anywhere in the tree.
     const stack: Node[] = [root];
     while (stack.length > 0) {
       const current = stack.pop()!;
-      if (current.type === 'list' || current.type === 'pipeline') {
-        return false;
+      if (
+        current.type === 'redirected_statement' ||
+        current.type === 'file_redirect' ||
+        current.type === 'heredoc_redirect' ||
+        current.type === 'herestring_redirect'
+      ) {
+        return true;
       }
       for (let i = current.childCount - 1; i >= 0; i -= 1) {
         const child = current.child(i);
         if (child) stack.push(child);
-      }
-    }
-
-    if (root.namedChildCount === 1) {
-      const firstChild = root.namedChild(0);
-      if (
-        firstChild?.type === 'command' ||
-        firstChild?.type === 'redirected_statement'
-      ) {
-        const stack: Node[] = [firstChild];
-        while (stack.length > 0) {
-          const current = stack.pop()!;
-          if (
-            current.type === 'redirected_statement' ||
-            current.type === 'file_redirect' ||
-            current.type === 'heredoc_redirect' ||
-            current.type === 'herestring_redirect'
-          ) {
-            return true;
-          }
-          for (let i = current.childCount - 1; i >= 0; i -= 1) {
-            const child = current.child(i);
-            if (child) stack.push(child);
-          }
-        }
       }
     }
     return false;
@@ -819,9 +826,12 @@ export function hasRedirection(command: string): boolean {
  * Checks if a command contains environment variable prefixes (e.g. `FOO=bar cmd`).
  */
 export function hasEnvPrefix(command: string): boolean {
-  const fallbackCheck = () =>
-    /^(?:env\s+)?[a-zA-Z_][a-zA-Z0-9_]*=/.test(command.trim()) ||
-    /^env\s+/.test(command.trim());
+  const fallbackCheck = () => {
+    const trimmed = command.trim();
+    return (
+      /^[a-zA-Z_][a-zA-Z0-9_]*=/.test(trimmed) || /^env(?:\s+|$)/.test(trimmed)
+    );
+  };
 
   const configuration = getShellConfiguration();
 
@@ -829,43 +839,48 @@ export function hasEnvPrefix(command: string): boolean {
     const tree = parseCommandTree(command);
     if (!tree) return fallbackCheck();
 
-    // Check if the root is a single command. If it's a compound command
-    // (pipeline, list, etc.), we return false because we only want to allow
-    // environment prefixes for simple, standalone commands.
     const root = tree.rootNode;
     // tree-sitter-bash wraps everything in a program/document root.
+    // We check if the command contains any compound structures like lists or pipelines
+    // at the top level (or wrapped in redirected statements), in which case we
+    // return false to allow the policy engine to split them.
     const compoundStack: Node[] = [root];
+    // If there are multiple top-level commands (e.g. separated by ';'), return false to split.
+    if (root.namedChildCount > 1) {
+      return false;
+    }
+
     while (compoundStack.length > 0) {
       const current = compoundStack.pop()!;
-      if (current.type === 'list' || current.type === 'pipeline') {
+      if (
+        current.type === 'list' ||
+        current.type === 'pipeline' ||
+        current.type === 'command_execution_list'
+      ) {
         return false;
       }
-      for (let i = current.childCount - 1; i >= 0; i -= 1) {
-        const child = current.child(i);
-        if (child) compoundStack.push(child);
+      // Traverse into children, but stop at subshells as they are considered atomic for splitting.
+      if (current.type !== 'subshell') {
+        for (let i = current.childCount - 1; i >= 0; i -= 1) {
+          const child = current.child(i);
+          if (child) compoundStack.push(child);
+        }
       }
     }
 
-    if (root.namedChildCount === 1) {
-      const firstChild = root.namedChild(0);
-      if (
-        firstChild?.type === 'command' ||
-        firstChild?.type === 'variable_assignment'
-      ) {
-        const stack: Node[] = [firstChild];
-        while (stack.length > 0) {
-          const current = stack.pop()!;
-          if (current.type === 'variable_assignment') {
-            return true;
-          }
-          if (current.type === 'command_name' && current.text === 'env') {
-            return true;
-          }
-          for (let i = current.childCount - 1; i >= 0; i -= 1) {
-            const child = current.child(i);
-            if (child) stack.push(child);
-          }
-        }
+    // Now check for environment variable assignments anywhere in the tree.
+    const stack: Node[] = [root];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (current.type === 'variable_assignment') {
+        return true;
+      }
+      if (current.type === 'command_name' && current.text === 'env') {
+        return true;
+      }
+      for (let i = current.childCount - 1; i >= 0; i -= 1) {
+        const child = current.child(i);
+        if (child) stack.push(child);
       }
     }
     return false;

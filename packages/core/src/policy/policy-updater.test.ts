@@ -364,10 +364,8 @@ describe('ShellToolInvocation Policy Update', () => {
         };
       }
     ).getPolicyUpdateOptions(ToolConfirmationOutcome.ProceedAlways);
-    expect(options!.commandPrefix).toEqual(['ls']);
-    expect(options!.allowEnv).toBe(true);
-    expect(shellUtils.hasEnvPrefix).toHaveBeenCalledWith(
-      'PAGER=cat ls -la',
-    );
+    expect(options.commandPrefix).toEqual(['ls']);
+    expect(options.allowEnv).toBe(true);
+    expect(shellUtils.hasEnvPrefix).toHaveBeenCalledWith('PAGER=cat ls -la');
   });
 });
