@@ -13,6 +13,7 @@ import {
   stripShellWrapper,
   hasRedirection,
   hasEnvPrefix,
+  stripEnvPrefix,
   extractStringFromParseEntry,
 } from '../utils/shell-utils.js';
 import { parse as shellParse } from 'shell-quote';
@@ -616,9 +617,27 @@ export class PolicyEngine {
       }
     }
 
-    const toolCallsToTry: FunctionCall[] = [];
+    const trials: Array<{ tc: FunctionCall; sa?: string }> = [];
+    let strippedCommand: string | undefined;
+    if (isShellCommand && command) {
+      strippedCommand = stripEnvPrefix(command);
+    }
+
     for (const name of toolNamesToTry) {
-      toolCallsToTry.push({ ...toolCall, name });
+      trials.push({ tc: { ...toolCall, name }, sa: stringifiedArgs });
+      if (
+        isShellCommand &&
+        command &&
+        strippedCommand &&
+        strippedCommand !== command
+      ) {
+        const strippedTc = {
+          ...toolCall,
+          name,
+          args: { ...toolCall.args, command: strippedCommand },
+        };
+        trials.push({ tc: strippedTc, sa: stableStringify(strippedTc.args) });
+      }
     }
 
     for (const rule of this.rules) {
@@ -626,11 +645,11 @@ export class PolicyEngine {
         continue;
       }
 
-      const match = toolCallsToTry.some((tc) =>
+      const match = trials.some((trial) =>
         ruleMatches(
           rule,
-          tc,
-          stringifiedArgs,
+          trial.tc,
+          trial.sa,
           serverName,
           this.approvalMode,
           this.nonInteractive,

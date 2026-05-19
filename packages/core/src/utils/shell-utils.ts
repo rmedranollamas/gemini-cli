@@ -331,6 +331,16 @@ export function normalizeCommand(commandName: string): string {
 }
 
 function extractNameFromNode(node: Node): string | null {
+  if (node.type === 'variable_assignment') {
+    // Only return 'env assignment' if this is a standalone assignment or part of a command without a name.
+    // If it's part of a command with a name (e.g. FOO=bar git), the command node itself
+    // will be used to detect the environment prefix.
+    const parent = node.parent;
+    if (parent?.type === 'command' && parent.childForFieldName('name')) {
+      return null;
+    }
+    return 'env assignment';
+  }
   switch (node.type) {
     case 'command': {
       const nameNode = node.childForFieldName('name');
@@ -932,6 +942,32 @@ export function getCommandRoots(command: string): string[] {
     .map((detail) => detail.name)
     .filter((name) => !REDIRECTION_NAMES.has(name))
     .filter(Boolean);
+}
+
+export function stripEnvPrefix(command: string): string {
+  const configuration = getShellConfiguration();
+
+  if (configuration.shell === 'bash' && bashLanguage) {
+    const tree = parseCommandTree(command);
+    if (!tree) return command.trim();
+
+    const root = tree.rootNode;
+    // We only strip from a single command. If it's a list/pipeline, we don't strip here.
+    if (root.namedChildCount !== 1) {
+      return command.trim();
+    }
+
+    const node = root.namedChild(0);
+    if (node?.type === 'command') {
+      const nameNode = node.childForFieldName('name');
+      if (nameNode) {
+        return command.slice(nameNode.startIndex, node.endIndex).trim();
+      }
+    }
+  }
+
+  // Fallback for when parser is not available or it's not a simple command
+  return command.trim().replace(/^(?:[a-zA-Z_][a-zA-Z0-9_]*=[^\s]*\s+)+/, '');
 }
 
 export function stripShellWrapper(command: string): string {
