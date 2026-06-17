@@ -423,6 +423,17 @@ export async function main() {
 
   const argv = await argvPromise;
 
+  if (argv.help || argv.version) {
+    if (
+      process.env['VITEST'] === 'true' ||
+      process.env['GEMINI_CLI_INTEGRATION_TEST'] === 'true'
+    ) {
+      return;
+    }
+    await runExitCleanup();
+    process.exit(0);
+  }
+
   const { sessionId, resumedSessionData } = await resolveSessionId(
     argv.resume,
     argv.sessionId,
