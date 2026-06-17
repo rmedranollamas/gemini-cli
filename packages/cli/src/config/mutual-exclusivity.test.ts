@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parseArguments } from './config.js';
 import { createTestMergedSettings } from './settings.js';
+import { FatalConfigError } from '@google/gemini-cli-core';
 
 describe('parseArguments mutual exclusivity', () => {
   afterEach(() => {
@@ -26,12 +27,9 @@ describe('parseArguments mutual exclusivity', () => {
       const mockConsoleError = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      vi.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('process.exit called');
-      });
 
       await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
-        'process.exit called',
+        FatalConfigError,
       );
 
       expect(mockConsoleError).toHaveBeenCalledWith(

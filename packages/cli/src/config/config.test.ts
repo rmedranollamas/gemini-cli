@@ -20,6 +20,7 @@ import {
   type MCPServerConfig,
   type GeminiCLIExtension,
   Storage,
+  FatalConfigError,
 } from '@google/gemini-cli-core';
 import { loadCliConfig, parseArguments, type CliArgs } from './config.js';
 import {
@@ -228,7 +229,7 @@ describe('parseArguments', () => {
     });
 
     await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
-      'process.exit called',
+      FatalConfigError,
     );
 
     expect(mockConsoleError).toHaveBeenCalledWith(
@@ -279,9 +280,7 @@ describe('parseArguments', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      await expect(parseArguments(settings)).rejects.toThrow(
-        'process.exit called',
-      );
+      await expect(parseArguments(settings)).rejects.toThrow(FatalConfigError);
       expect(mockConsoleError).toHaveBeenCalledWith(
         expect.stringContaining(
           'The --worktree flag is only available when experimental.worktrees is enabled in your settings.',
@@ -327,7 +326,7 @@ describe('parseArguments', () => {
         .mockImplementation(() => {});
 
       await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
-        'process.exit called',
+        FatalConfigError,
       );
 
       expect(mockConsoleError).toHaveBeenCalledWith(
@@ -580,7 +579,7 @@ describe('parseArguments', () => {
         .mockImplementation(() => {});
 
       await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
-        'process.exit called',
+        FatalConfigError,
       );
 
       expect(mockConsoleError).toHaveBeenCalledWith(
@@ -624,7 +623,7 @@ describe('parseArguments', () => {
       .mockImplementation(() => {});
 
     await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
-      'process.exit called',
+      FatalConfigError,
     );
 
     expect(debugErrorSpy).toHaveBeenCalledWith(
@@ -3175,7 +3174,7 @@ describe('Output format', () => {
       .mockImplementation(() => {});
 
     await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
-      'process.exit called',
+      FatalConfigError,
     );
     expect(debugErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Invalid values:'),
@@ -3221,7 +3220,7 @@ describe('parseArguments with positional prompt', () => {
       .mockImplementation(() => {});
 
     await expect(parseArguments(createTestMergedSettings())).rejects.toThrow(
-      'process.exit called',
+      FatalConfigError,
     );
 
     expect(debugErrorSpy).toHaveBeenCalledWith(
