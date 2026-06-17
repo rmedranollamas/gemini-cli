@@ -72,7 +72,6 @@ import type { ExtensionEvents } from '@google/gemini-cli-core/src/utils/extensio
 import { requestConsentNonInteractive } from './extensions/consent.js';
 import { promptForSetting } from './extensions/extensionSettings.js';
 import type { EventEmitter } from 'node:stream';
-import { runExitCleanup } from '../utils/cleanup.js';
 
 export interface CliArgs {
   query: string | undefined;
@@ -519,13 +518,11 @@ export async function parseArguments(
     const msg = getErrorMessage(e);
     debugLogger.error(msg);
     yargsInstance.showHelp();
-    await runExitCleanup();
-    process.exit(1);
+    throw new FatalConfigError(msg);
   }
 
   // Handle help and version flags manually since we disabled exitProcess
   if (result['help'] || result['version']) {
-    await runExitCleanup();
     process.exit(0);
   }
 
