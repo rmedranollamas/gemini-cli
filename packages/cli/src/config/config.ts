@@ -58,6 +58,7 @@ import {
 
 import { loadSandboxConfig } from './sandboxConfig.js';
 import { resolvePath } from '../utils/resolvePath.js';
+import { runExitCleanup } from '../utils/cleanup.js';
 import { isRecord } from '../utils/settingsUtils.js';
 import { RESUME_LATEST } from '../utils/sessionUtils.js';
 
@@ -523,7 +524,13 @@ export async function parseArguments(
 
   // Handle help and version flags manually since we disabled exitProcess
   if (result['help'] || result['version']) {
-    process.exit(0);
+    if (
+      process.env['VITEST'] !== 'true' &&
+      process.env['GEMINI_CLI_INTEGRATION_TEST'] !== 'true'
+    ) {
+      await runExitCleanup();
+      process.exit(0);
+    }
   }
 
   // Normalize query args: handle both quoted "@path file" and unquoted @path file
