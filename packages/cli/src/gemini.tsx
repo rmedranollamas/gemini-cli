@@ -425,8 +425,8 @@ export async function main() {
 
   if (argv.help || argv.version) {
     if (
-      process.env['VITEST'] === 'true' ||
-      process.env['GEMINI_CLI_INTEGRATION_TEST'] === 'true'
+      process.env['VITEST'] === 'true' &&
+      process.env['GEMINI_CLI_INTEGRATION_TEST'] !== 'true'
     ) {
       return;
     }
